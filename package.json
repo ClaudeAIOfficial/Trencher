@@ -1,0 +1,41 @@
+{
+  "name": "trencher",
+  "version": "0.1.0",
+  "description": "Trencher — an AI agent that trades Solana memecoins, coded with Cursor.",
+  "license": "MIT",
+  "type": "commonjs",
+  "main": "dist/index.js",
+  "bin": {
+    "trencher": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "start": "node dist/index.js",
+    "dev": "ts-node src/index.ts",
+    "trencher": "ts-node src/index.ts"
+  },
+  "keywords": [
+    "solana",
+    "memecoin",
+    "trading",
+    "agent",
+    "jupiter",
+    "ai",
+    "trencher"
+  ],
+  "dependencies": {
+    "@solana/web3.js": "^1.95.3",
+    "bs58": "^6.0.0",
+    "commander": "^12.1.0",
+    "dotenv": "^16.4.5"
+  },
+  "devDependencies": {
+    "@types/node": "^22.5.4",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.5.4"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
