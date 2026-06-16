@@ -1,0 +1,25 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Environment / secrets — NEVER commit private keys
+.env
+.env.local
+*.key
+wallet.json
+keypair.json
+
+# Agent runtime state (open positions book)
+.trencher/
+
+# Logs
+*.log
+logs/
+npm-debug.log*
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
