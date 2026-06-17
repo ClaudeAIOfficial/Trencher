@@ -149,7 +149,7 @@ function SourceCard({ source, index }: { source: ResearchSource; index: number }
           <div className="space-y-2">
             {source.keyQuotes.map((quote) => (
               <blockquote key={quote} className="border-l-2 border-sky-300/60 pl-3 text-sm italic text-slate-300">
-                "{quote}"
+                &quot;{quote}&quot;
               </blockquote>
             ))}
           </div>
@@ -171,7 +171,6 @@ export default function Home() {
 
   useEffect(() => {
     if (!isLoading) {
-      setLoadingIndex(0);
       return;
     }
 
@@ -192,6 +191,7 @@ export default function Home() {
     }
 
     setIsLoading(true);
+    setLoadingIndex(0);
     setError("");
     setReport(null);
     setCopied(false);
