@@ -111,7 +111,7 @@ const searchWithBrave = async (topic: string, maxResults: number): Promise<Searc
     web?: {
       results?: Array<{ title?: string; url?: string; description?: string }>;
     };
-  }>(endpoint, {
+  }>(endpoint.toString(), {
     headers: {
       Accept: "application/json",
       "X-Subscription-Token": apiKey
@@ -143,7 +143,7 @@ const searchWithSerpApi = async (topic: string, maxResults: number): Promise<Sea
 
   const data = await requestJson<{
     organic_results?: Array<{ title?: string; link?: string; snippet?: string }>;
-  }>(endpoint);
+  }>(endpoint.toString());
 
   return (data.organic_results ?? [])
     .filter((item) => item.link && item.title)
