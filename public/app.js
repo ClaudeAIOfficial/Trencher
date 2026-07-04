@@ -9,6 +9,8 @@ const reverseLinks = document.getElementById("reverse-links");
 const postExtract = document.getElementById("post-extract");
 const ocrText = document.getElementById("ocr-text");
 const bestLinksList = document.getElementById("best-links-list");
+const socialStatusList = document.getElementById("social-status-list");
+const confidenceBox = document.getElementById("confidence-box");
 const submitBtn = document.getElementById("submit-btn");
 
 function setStatus(message, isError = false) {
@@ -55,22 +57,38 @@ function renderResult(payload) {
 
   bestLinksList.innerHTML = "";
   (result.bestLinks || []).forEach((link) => {
-    const details = `${link.platform || "web"} | ${link.date || "unknown date"} | confidence ${link.confidence}/100 | ${link.whyItMatters}`;
+    const details = `${link.platform || "web"} | ${link.author || "unknown author"} | ${link.date || "unknown date"} | confidence ${link.confidence}/100 (${link.originLikelihood || "low"}) | ${link.whyItMatters}`;
     bestLinksList.appendChild(makeListItem(`${link.title} — ${details}`, link.url));
   });
   if (!bestLinksList.children.length) {
     bestLinksList.appendChild(makeListItem("No ranked links available."));
   }
 
+  socialStatusList.innerHTML = "";
+  const socialStatus = result.socialSourcesChecked || {};
+  ["x", "tiktok", "instagram", "facebook", "reddit", "youtube"].forEach((platform) => {
+    const item = socialStatus[platform] || { status: "skipped", detail: "not searched" };
+    socialStatusList.appendChild(makeListItem(`${platform}: ${item.status} (${item.detail})`));
+  });
+
+  confidenceBox.innerHTML = `
+    <p><strong>Confidence Score:</strong> ${result.confidenceScore ?? "N/A"}</p>
+    <p><strong>Source Quality:</strong> ${result.sourceQuality || "N/A"}</p>
+    <p><strong>Reason:</strong> ${result.confidenceReason || "N/A"}</p>
+  `;
+
   const extracted = result.extractedPost;
   if (extracted) {
     postExtract.innerHTML = `
       <p><strong>Platform:</strong> ${extracted.platform || "N/A"}</p>
+      <p><strong>Post ID:</strong> ${extracted.postId || "N/A"}</p>
       <p><strong>Title:</strong> ${extracted.title || "N/A"}</p>
       <p><strong>Author:</strong> ${extracted.author || "N/A"}</p>
-      <p><strong>Date:</strong> ${extracted.publishedAt || "N/A"}</p>
+      <p><strong>Date:</strong> ${extracted.date || extracted.publishedAt || "N/A"}</p>
       <p><strong>URL:</strong> <a href="${extracted.url}" target="_blank" rel="noopener noreferrer">${extracted.url}</a></p>
-      <p><strong>Text:</strong> ${extracted.description || extracted.snippet || "N/A"}</p>
+      <p><strong>Text:</strong> ${extracted.caption || extracted.description || extracted.snippet || "N/A"}</p>
+      <p><strong>Engagement:</strong> ${JSON.stringify(extracted.engagement || "N/A")}</p>
+      <p><strong>Comments:</strong> ${extracted.comments || "N/A"}</p>
     `;
   } else {
     postExtract.innerHTML = "<p>No direct post extraction was performed for this input.</p>";

@@ -3,15 +3,29 @@ const multer = require("multer");
 const cheerio = require("cheerio");
 const Tesseract = require("tesseract.js");
 const dotenv = require("dotenv");
+const {
+  SOCIAL_PLATFORMS,
+  getPlatformFromUrl,
+  getAdapterForUrl,
+  getSocialAdapters,
+} = require("./adapters/router");
 
 dotenv.config({ quiet: true });
 
 const app = express();
 const upload = multer({ limits: { fileSize: 10 * 1024 * 1024 } });
 const PORT = process.env.PORT || 3000;
-const SERP_API_BASE = "https://serpapi.com/search.json";
 const SERPAPI_KEY = process.env.SERPAPI_KEY || "";
+const APIFY_TOKEN = process.env.APIFY_TOKEN || "";
+const SERP_API_BASE = "https://serpapi.com/search.json";
+const APIFY_API_BASE = "https://api.apify.com/v2";
 const DEFAULT_TIMEOUT_MS = 12000;
+const SOCIAL_STATUS_VALUES = {
+  CHECKED: "checked",
+  FAILED: "failed",
+  SKIPPED: "skipped",
+  API_MISSING: "API missing",
+};
 
 app.use(express.json({ limit: "2mb" }));
 app.use(express.urlencoded({ extended: true }));
@@ -26,10 +40,20 @@ const INPUT_TYPES = {
   FACEBOOK_URL: "facebook_link",
   TIKTOK_URL: "tiktok_link",
   REDDIT_URL: "reddit_link",
+  YOUTUBE_URL: "youtube_link",
   RANDOM_SENTENCE: "random_sentence",
   CAPTION: "caption",
   NAME_OR_ENTITY: "name_or_entity",
   UNKNOWN: "unknown",
+};
+
+const APIFY_ACTOR_IDS = {
+  x: process.env.APIFY_X_ACTOR_ID || "",
+  tiktok: process.env.APIFY_TIKTOK_ACTOR_ID || "",
+  instagram: process.env.APIFY_INSTAGRAM_ACTOR_ID || "",
+  facebook: process.env.APIFY_FACEBOOK_ACTOR_ID || "",
+  reddit: process.env.APIFY_REDDIT_ACTOR_ID || "",
+  youtube: process.env.APIFY_YOUTUBE_ACTOR_ID || "",
 };
 
 function normalizeWhitespace(value) {
@@ -44,8 +68,8 @@ function compactText(value, max = 260) {
 
 function toIsoIfDate(value) {
   if (!value) return null;
-  const ts = Date.parse(value);
-  return Number.isNaN(ts) ? null : new Date(ts).toISOString();
+  const stamp = Date.parse(value);
+  return Number.isNaN(stamp) ? null : new Date(stamp).toISOString();
 }
 
 function toDateOnly(value) {
@@ -55,25 +79,22 @@ function toDateOnly(value) {
 
 function isLikelyUrl(value) {
   try {
-    const parsed = new URL(value.trim());
+    const parsed = new URL((value || "").trim());
     return parsed.protocol === "http:" || parsed.protocol === "https:";
   } catch (_error) {
     return false;
   }
 }
 
-function getPlatformFromUrl(value) {
-  if (!isLikelyUrl(value)) return "web";
-  const host = new URL(value).hostname.toLowerCase();
-  if (host.includes("x.com") || host.includes("twitter.com")) return "x";
-  if (host.includes("instagram.com")) return "instagram";
-  if (host.includes("facebook.com") || host.includes("fb.watch")) return "facebook";
-  if (host.includes("tiktok.com")) return "tiktok";
-  if (host.includes("reddit.com") || host.includes("redd.it")) return "reddit";
-  if (host.includes("youtube.com") || host.includes("youtu.be")) return "youtube";
-  if (host.includes("wikipedia.org")) return "wikipedia";
-  if (host.includes("news.google.com")) return "news";
-  return host.replace(/^www\./, "");
+function phraseFromUrl(url) {
+  if (!isLikelyUrl(url)) return "";
+  const parsed = new URL(url);
+  return `${parsed.pathname} ${parsed.search}`
+    .replace(/[/?&=_\-]+/g, " ")
+    .split(/\s+/)
+    .filter((token) => token.length > 2 && !/^\d+$/.test(token))
+    .slice(0, 12)
+    .join(" ");
 }
 
 function detectInputType(rawInput, file) {
@@ -84,13 +105,15 @@ function detectInputType(rawInput, file) {
 
   const input = (rawInput || "").trim();
   if (!input) return INPUT_TYPES.UNKNOWN;
+
   if (isLikelyUrl(input)) {
     const platform = getPlatformFromUrl(input);
     if (platform === "x") return INPUT_TYPES.X_URL;
+    if (platform === "tiktok") return INPUT_TYPES.TIKTOK_URL;
     if (platform === "instagram") return INPUT_TYPES.INSTAGRAM_URL;
     if (platform === "facebook") return INPUT_TYPES.FACEBOOK_URL;
-    if (platform === "tiktok") return INPUT_TYPES.TIKTOK_URL;
     if (platform === "reddit") return INPUT_TYPES.REDDIT_URL;
+    if (platform === "youtube") return INPUT_TYPES.YOUTUBE_URL;
     return INPUT_TYPES.POST_URL;
   }
 
@@ -103,23 +126,22 @@ function detectInputType(rawInput, file) {
 
 async function fetchWithTimeout(url, options = {}, timeoutMs = DEFAULT_TIMEOUT_MS) {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const response = await fetch(url, {
+    return await fetch(url, {
       ...options,
       signal: controller.signal,
       headers: {
-        "user-agent": "Mozilla/5.0 (X11; Linux x86_64) ViralLoreAgent/2.0",
-        ...options.headers,
+        "user-agent": "Mozilla/5.0 (X11; Linux x86_64) ViralLoreAgent/3.0",
+        ...(options.headers || {}),
       },
     });
-    return response;
   } finally {
-    clearTimeout(timeout);
+    clearTimeout(timer);
   }
 }
 
-async function fetchJson(url, options = {}, timeoutMs) {
+async function fetchJson(url, options = {}, timeoutMs = DEFAULT_TIMEOUT_MS) {
   const response = await fetchWithTimeout(
     url,
     { ...options, headers: { accept: "application/json,text/plain,*/*", ...(options.headers || {}) } },
@@ -129,7 +151,7 @@ async function fetchJson(url, options = {}, timeoutMs) {
   return response.json();
 }
 
-async function fetchText(url, options = {}, timeoutMs) {
+async function fetchText(url, options = {}, timeoutMs = DEFAULT_TIMEOUT_MS) {
   const response = await fetchWithTimeout(
     url,
     {
@@ -145,34 +167,26 @@ async function fetchText(url, options = {}, timeoutMs) {
   return response.text();
 }
 
-function makeQueryCandidates(baseQuery, ocr) {
-  const seed = [
-    baseQuery,
-    `"${baseQuery}"`,
-    `${baseQuery} meme origin`,
-    `${baseQuery} earliest post`,
-    `${baseQuery} lore`,
-    ...(ocr?.handles || []).slice(0, 3).map((h) => `${baseQuery} ${h}`),
-    ...(ocr?.watermarks || []).slice(0, 2).map((w) => `${baseQuery} ${w}`),
-  ]
-    .map((v) => normalizeWhitespace(v))
-    .filter(Boolean);
-  return [...new Set(seed)].slice(0, 8);
-}
-
-function phraseFromUrl(url) {
-  if (!isLikelyUrl(url)) return "";
-  const parsed = new URL(url);
-  return `${parsed.pathname} ${parsed.search}`
-    .replace(/[/?&=_\-]+/g, " ")
-    .split(/\s+/)
-    .filter((token) => token.length > 2 && !/^\d+$/.test(token))
-    .slice(0, 10)
-    .join(" ");
+function normalizeSource(raw) {
+  return {
+    sourceType: raw.sourceType || "web",
+    platform: raw.platform || getPlatformFromUrl(raw.url || ""),
+    title: compactText(raw.title || "Untitled", 180),
+    url: raw.url || null,
+    snippet: compactText(raw.snippet || "", 320),
+    author: raw.author || null,
+    publishedAt: toIsoIfDate(raw.publishedAt || raw.date || null),
+    image: raw.image || null,
+    visualScore: raw.visualScore || 0,
+    engagement: raw.engagement || null,
+    comments: raw.comments || null,
+    linkedOriginalSource: raw.linkedOriginalSource || null,
+    metadata: raw.metadata || {},
+  };
 }
 
 function unwrapDuckDuckGoUrl(rawUrl) {
-  if (!rawUrl) return rawUrl;
+  if (!rawUrl) return null;
   const candidate = rawUrl.startsWith("//") ? `https:${rawUrl}` : rawUrl;
   try {
     const parsed = new URL(candidate);
@@ -184,21 +198,26 @@ function unwrapDuckDuckGoUrl(rawUrl) {
   }
 }
 
-function normalizeSource(raw, defaults = {}) {
-  return {
-    sourceType: raw.sourceType || defaults.sourceType || "web",
-    platform: raw.platform || getPlatformFromUrl(raw.url || "") || defaults.platform || "web",
-    title: compactText(raw.title || "Untitled", 180),
-    url: raw.url || null,
-    snippet: compactText(raw.snippet || "", 300),
-    publishedAt: toIsoIfDate(raw.publishedAt || raw.date || null),
-    author: raw.author || null,
-    image: raw.image || null,
-    visualScore: raw.visualScore || 0,
-    rank: raw.rank || null,
-    repostHint: raw.repostHint || false,
-    metadata: raw.metadata || {},
-  };
+function extractLinkedSource(text) {
+  const match = (text || "").match(/https?:\/\/[^\s)]+/i);
+  return match ? match[0] : null;
+}
+
+function extractEngagementFromText(text) {
+  const likes = (text || "").match(/(\d[\d,.]*)\s+likes?/i)?.[1] || null;
+  const views = (text || "").match(/(\d[\d,.]*)\s+views?/i)?.[1] || null;
+  const shares = (text || "").match(/(\d[\d,.]*)\s+shares?/i)?.[1] || null;
+  const comments = (text || "").match(/(\d[\d,.]*)\s+comments?/i)?.[1] || null;
+  return likes || views || shares || comments ? { likes, views, shares, comments } : null;
+}
+
+function detectRepostIndicators(text) {
+  const indicators = [];
+  const body = (text || "").toLowerCase();
+  if (/repost|re-upload|reupload/.test(body)) indicators.push("repost");
+  if (/compilation|reaction|remix|duet/.test(body)) indicators.push("derivative format");
+  if (/credit|source:|via @/.test(body)) indicators.push("credits another source");
+  return indicators;
 }
 
 async function uploadImage(file) {
@@ -213,7 +232,7 @@ async function uploadImage(file) {
 async function runOCR(file) {
   const result = await Tesseract.recognize(file.buffer, "eng");
   const text = normalizeWhitespace(result?.data?.text || "");
-  const handles = [...new Set((text.match(/[@#][a-zA-Z0-9._]{2,30}/g) || []).slice(0, 15))];
+  const handles = [...new Set((text.match(/[@#][a-zA-Z0-9._]{2,30}/g) || []).slice(0, 20))];
   const timestamps = [...new Set((text.match(/\b\d{1,2}[:.]\d{2}\s?(?:AM|PM|am|pm)?\b/g) || []).slice(0, 10))];
   const watermarks = [...new Set((text.match(/\b(?:tt|ig|x|yt)[:\s]?[a-zA-Z0-9._]{2,30}\b/g) || []).slice(0, 10))];
   const logoCandidates = [...new Set((text.match(/\b[A-Z][A-Z0-9]{2,}\b/g) || []).slice(0, 12))];
@@ -231,8 +250,7 @@ async function serpApiRequest(params, timeoutMs = DEFAULT_TIMEOUT_MS) {
 
 async function serpWebSearch(query) {
   const data = await serpApiRequest({ engine: "google", q: query, num: 10 });
-  const organic = data?.organic_results || [];
-  return organic.map((item) =>
+  return (data?.organic_results || []).map((item) =>
     normalizeSource({
       sourceType: "web",
       platform: getPlatformFromUrl(item.link),
@@ -240,15 +258,13 @@ async function serpWebSearch(query) {
       url: item.link,
       snippet: item.snippet || item.snippet_highlighted_words?.join(" "),
       date: item.date,
-      rank: item.position,
     }),
   );
 }
 
 async function serpNewsSearch(query) {
   const data = await serpApiRequest({ engine: "google_news", q: query, num: 10 });
-  const items = data?.news_results || [];
-  return items.map((item) =>
+  return (data?.news_results || []).map((item) =>
     normalizeSource({
       sourceType: "news",
       platform: getPlatformFromUrl(item.link),
@@ -257,16 +273,13 @@ async function serpNewsSearch(query) {
       snippet: item.snippet || "",
       date: item.date,
       image: item.thumbnail,
-      rank: item.position,
-      metadata: { sourceName: item.source?.name || null },
     }),
   );
 }
 
 async function serpGoogleLens(imageUrl) {
   const data = await serpApiRequest({ engine: "google_lens", url: imageUrl }, 18000);
-  const visual = data?.visual_matches || [];
-  const converted = visual.map((item, index) =>
+  return (data?.visual_matches || []).map((item, index) =>
     normalizeSource({
       sourceType: "visual_match",
       platform: getPlatformFromUrl(item.link),
@@ -275,78 +288,56 @@ async function serpGoogleLens(imageUrl) {
       snippet: item.source || item.snippet || "",
       image: item.thumbnail,
       visualScore: Math.max(0, 100 - index * 6),
-      rank: index + 1,
     }),
   );
-  return { visualMatches: converted, raw: data };
 }
 
 async function fallbackDuckDuckGo(query) {
-  const url = `https://duckduckgo.com/html/?q=${encodeURIComponent(query)}`;
-  const html = await fetchText(url, {}, 10000);
+  const html = await fetchText(`https://duckduckgo.com/html/?q=${encodeURIComponent(query)}`, {}, 10000);
   const $ = cheerio.load(html);
-  const results = [];
+  const output = [];
   $(".result").each((_idx, node) => {
     const title = normalizeWhitespace($(node).find(".result__title").text());
-    const href = unwrapDuckDuckGoUrl($(node).find("a.result__a").attr("href"));
+    const url = unwrapDuckDuckGoUrl($(node).find("a.result__a").attr("href"));
     const snippet = normalizeWhitespace($(node).find(".result__snippet").text());
-    if (!title || !href) return;
-    results.push(
+    if (!title || !url) return;
+    output.push(
       normalizeSource({
         sourceType: "web_fallback",
-        platform: getPlatformFromUrl(href),
+        platform: getPlatformFromUrl(url),
         title,
-        url: href,
+        url,
         snippet,
       }),
     );
   });
-  return results.slice(0, 8);
+  return output.slice(0, 10);
 }
 
 async function fallbackNewsRss(query) {
-  const rss = `https://news.google.com/rss/search?q=${encodeURIComponent(query)}&hl=en-US&gl=US&ceid=US:en`;
-  const xml = await fetchText(rss, {}, 10000);
+  const xml = await fetchText(
+    `https://news.google.com/rss/search?q=${encodeURIComponent(query)}&hl=en-US&gl=US&ceid=US:en`,
+    {},
+    10000,
+  );
   const $ = cheerio.load(xml, { xmlMode: true });
-  const out = [];
+  const output = [];
   $("item").each((_idx, node) => {
     const title = normalizeWhitespace($(node).find("title").first().text());
     const link = normalizeWhitespace($(node).find("link").first().text());
     const date = normalizeWhitespace($(node).find("pubDate").first().text());
     if (!title || !link) return;
-    out.push(normalizeSource({ sourceType: "news_fallback", title, url: link, date }));
+    output.push(
+      normalizeSource({
+        sourceType: "news_fallback",
+        platform: "news",
+        title,
+        url: link,
+        date,
+      }),
+    );
   });
-  return out.slice(0, 8);
-}
-
-async function searchReddit(query) {
-  const url = `https://www.reddit.com/search.json?q=${encodeURIComponent(query)}&sort=new&limit=10`;
-  const data = await fetchJson(url, {}, 10000);
-  const posts = data?.data?.children || [];
-  return posts.map((entry) => {
-    const post = entry.data;
-    return normalizeSource({
-      sourceType: "reddit",
-      platform: "reddit",
-      title: post.title,
-      url: `https://www.reddit.com${post.permalink}`,
-      snippet: post.selftext || "",
-      author: post.author || null,
-      date: post.created_utc ? new Date(post.created_utc * 1000).toISOString() : null,
-      rank: null,
-    });
-  });
-}
-
-function isLikelyPostUrl(type) {
-  return [
-    INPUT_TYPES.POST_URL,
-    INPUT_TYPES.X_URL,
-    INPUT_TYPES.INSTAGRAM_URL,
-    INPUT_TYPES.FACEBOOK_URL,
-    INPUT_TYPES.TIKTOK_URL,
-    INPUT_TYPES.REDDIT_URL,
-  ].includes(type);
+  return output.slice(0, 10);
 }
 
 function getMeta($, selectors) {
@@ -357,30 +348,10 @@ function getMeta($, selectors) {
   return null;
 }
 
-async function extractPostDetails(url) {
-  const platform = getPlatformFromUrl(url);
-  if (platform === "reddit") {
-    const jsonUrl = url.endsWith("/") ? `${url}.json` : `${url}/.json`;
-    const listing = await fetchJson(jsonUrl, {}, 10000);
-    const postData = listing?.[0]?.data?.children?.[0]?.data;
-    if (postData) {
-      return {
-        sourceType: "post_extract",
-        platform,
-        url: `https://www.reddit.com${postData.permalink}`,
-        title: postData.title || "Untitled",
-        description: compactText(postData.selftext || ""),
-        author: postData.author || null,
-        publishedAt: postData.created_utc ? new Date(postData.created_utc * 1000).toISOString() : null,
-        image: postData.url_overridden_by_dest || null,
-        openGraph: {},
-      };
-    }
-  }
-
+async function extractOpenGraph(url) {
   const html = await fetchText(url, {}, 12000);
   const $ = cheerio.load(html);
-  const og = {
+  const openGraph = {
     title: getMeta($, ["meta[property='og:title']", "meta[name='twitter:title']", "meta[name='title']"]),
     description: getMeta($, [
       "meta[property='og:description']",
@@ -401,149 +372,319 @@ async function extractPostDetails(url) {
       ]),
     ),
   };
-  const title = og.title || normalizeWhitespace($("title").first().text()) || "Untitled";
   return {
-    sourceType: "post_extract",
-    platform,
     url,
-    title,
-    description: og.description || "",
-    author: og.author || null,
-    publishedAt: og.publishedAt || null,
-    image: og.image || null,
-    openGraph: og,
+    title: openGraph.title || normalizeWhitespace($("title").first().text()) || "Untitled",
+    description: openGraph.description || "",
+    author: openGraph.author || null,
+    publishedAt: openGraph.publishedAt || null,
+    image: openGraph.image || null,
+    openGraph,
   };
 }
 
-function uniqueByUrlAndTitle(entries) {
-  const seen = new Set();
-  const out = [];
-  for (const entry of entries) {
-    const key = `${entry.url || ""}|${entry.title || ""}`.toLowerCase();
-    if (!seen.has(key)) {
-      seen.add(key);
-      out.push(entry);
-    }
+async function extractRedditJson(url) {
+  try {
+    const jsonUrl = url.endsWith("/") ? `${url}.json` : `${url}/.json`;
+    const listing = await fetchJson(jsonUrl, {}, 10000);
+    const post = listing?.[0]?.data?.children?.[0]?.data;
+    if (!post) return null;
+    return {
+      postId: post.id || null,
+      author: post.author || null,
+      title: post.title || "Untitled",
+      caption: compactText(post.selftext || post.title || "", 350),
+      date: post.created_utc ? new Date(post.created_utc * 1000).toISOString() : null,
+      media: post.url_overridden_by_dest || null,
+      comments: post.num_comments || null,
+      engagement: { likes: post.score || null },
+      openGraph: {},
+    };
+  } catch (_error) {
+    return null;
   }
-  return out;
+}
+
+function detectApifyActorStatus(platform) {
+  if (!APIFY_TOKEN) return SOCIAL_STATUS_VALUES.API_MISSING;
+  if (!APIFY_ACTOR_IDS[platform]) return SOCIAL_STATUS_VALUES.API_MISSING;
+  return SOCIAL_STATUS_VALUES.CHECKED;
+}
+
+async function runApifyActor(platform, query) {
+  const actorId = APIFY_ACTOR_IDS[platform];
+  if (!APIFY_TOKEN || !actorId) {
+    return { status: SOCIAL_STATUS_VALUES.API_MISSING, items: [] };
+  }
+  const url =
+    `${APIFY_API_BASE}/acts/${encodeURIComponent(actorId)}/run-sync-get-dataset-items` +
+    `?token=${encodeURIComponent(APIFY_TOKEN)}&memory=512`;
+  const input = {
+    query,
+    searchTerms: [query],
+    queries: [query],
+    maxItems: 12,
+    resultsLimit: 12,
+    maxResults: 12,
+  };
+
+  try {
+    const items = await fetchJson(
+      url,
+      { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(input) },
+      18000,
+    );
+    return { status: SOCIAL_STATUS_VALUES.CHECKED, items: Array.isArray(items) ? items : [] };
+  } catch (_error) {
+    return { status: SOCIAL_STATUS_VALUES.FAILED, items: [] };
+  }
+}
+
+function mapApifyItemToSource(platform, item) {
+  const url = item.url || item.link || item.postUrl || item.permalink || item.videoUrl || null;
+  const title = item.title || item.caption || item.text || item.description || "Untitled";
+  const snippet = item.snippet || item.text || item.caption || item.description || "";
+  const author = item.author || item.username || item.handle || item.channel || null;
+  const date = item.date || item.createdAt || item.publishedAt || item.timestamp || null;
+  const image = item.image || item.thumbnail || item.thumbnailUrl || item.displayUrl || null;
+  return normalizeSource({
+    sourceType: `${platform}_apify`,
+    platform,
+    title,
+    url,
+    snippet,
+    author,
+    date,
+    image,
+    engagement: {
+      likes: item.likes || item.likeCount || null,
+      shares: item.shares || item.shareCount || null,
+      comments: item.comments || item.commentCount || null,
+      views: item.views || item.viewCount || null,
+    },
+    metadata: { raw: item },
+  });
+}
+
+async function searchBySite(platform, query, sites) {
+  if (!query) {
+    return { status: SOCIAL_STATUS_VALUES.SKIPPED, apiStatus: SOCIAL_STATUS_VALUES.SKIPPED, results: [] };
+  }
+
+  const apify = await runApifyActor(platform, query);
+  const apifyResults = apify.items.map((item) => mapApifyItemToSource(platform, item)).filter((item) => item.url);
+  if (apify.status === SOCIAL_STATUS_VALUES.CHECKED && apifyResults.length) {
+    return { status: SOCIAL_STATUS_VALUES.CHECKED, apiStatus: SOCIAL_STATUS_VALUES.CHECKED, results: apifyResults };
+  }
+
+  const siteQueries = sites.map((site) => `site:${site} ${query}`);
+  const fallbackTasks = siteQueries.map((siteQuery) =>
+    SERPAPI_KEY ? serpWebSearch(siteQuery) : fallbackDuckDuckGo(siteQuery),
+  );
+  const settled = await Promise.allSettled(fallbackTasks);
+  const fallbackResults = settled
+    .filter((entry) => entry.status === "fulfilled")
+    .flatMap((entry) => entry.value || [])
+    .map((entry) => normalizeSource({ ...entry, platform }));
+
+  if (fallbackResults.length) {
+    return {
+      status: SOCIAL_STATUS_VALUES.CHECKED,
+      apiStatus: apify.status,
+      results: fallbackResults,
+    };
+  }
+
+  if (apify.status === SOCIAL_STATUS_VALUES.API_MISSING) {
+    return { status: SOCIAL_STATUS_VALUES.API_MISSING, apiStatus: apify.status, results: [] };
+  }
+  return { status: SOCIAL_STATUS_VALUES.FAILED, apiStatus: apify.status, results: [] };
+}
+
+function makeSearchQueries(baseQuery, ocr, postExtract) {
+  const ocrTokens = [
+    ...(ocr?.handles || []).slice(0, 3),
+    ...(ocr?.watermarks || []).slice(0, 2),
+    ...(ocr?.logoCandidates || []).slice(0, 2),
+  ];
+  const queries = [
+    baseQuery,
+    postExtract?.caption,
+    postExtract?.title,
+    `"${baseQuery}"`,
+    `${baseQuery} meme origin`,
+    `${baseQuery} earliest post`,
+    ...ocrTokens.map((token) => `${baseQuery} ${token}`),
+  ]
+    .map((item) => normalizeWhitespace(item))
+    .filter(Boolean);
+  return [...new Set(queries)].slice(0, 8);
+}
+
+function clusterKey(entry) {
+  const titleKey = normalizeWhitespace((entry.title || "").toLowerCase()).slice(0, 90);
+  const snippetKey = normalizeWhitespace((entry.snippet || "").toLowerCase()).slice(0, 70);
+  const authorKey = normalizeWhitespace((entry.author || "").toLowerCase());
+  if (entry.url) return `url:${entry.url.toLowerCase()}`;
+  if (entry.image) return `img:${entry.image.toLowerCase()}`;
+  if (titleKey && authorKey) return `ta:${titleKey}|${authorKey}`;
+  if (titleKey) return `t:${titleKey}`;
+  return `s:${snippetKey}`;
+}
+
+function clusterAndPickStrongest(entries) {
+  const clusters = new Map();
+  entries.forEach((entry) => {
+    const key = clusterKey(entry);
+    if (!clusters.has(key)) clusters.set(key, []);
+    clusters.get(key).push(entry);
+  });
+  return [...clusters.values()].map((group) => group.slice().sort((a, b) => (b.score || 0) - (a.score || 0))[0]);
+}
+
+function pickEarliest(entries) {
+  const dated = entries.filter((entry) => entry.publishedAt);
+  if (!dated.length) return null;
+  return dated.slice().sort((a, b) => Date.parse(a.publishedAt) - Date.parse(b.publishedAt))[0];
 }
 
 function domainAuthorityScore(url) {
-  if (!url) return 0;
-  const host = getPlatformFromUrl(url);
-  const authority = {
-    reddit: 7,
-    x: 7,
-    instagram: 7,
-    tiktok: 7,
+  const platform = getPlatformFromUrl(url || "");
+  const map = {
+    x: 8,
+    tiktok: 8,
+    instagram: 8,
     facebook: 7,
-    wikipedia: 10,
+    reddit: 8,
     youtube: 8,
+    wikipedia: 10,
     news: 9,
-    "nytimes.com": 10,
-    "bbc.com": 10,
-    "theguardian.com": 9,
-    "knowyourmeme.com": 8,
+    "knowyourmeme.com": 9,
   };
-  return authority[host] || 4;
+  return map[platform] || 5;
 }
 
 function scoreSource(source, context) {
-  let score = 10;
+  let score = 15;
   const reasons = [];
+  const text = `${source.title} ${source.snippet}`.toLowerCase();
+
   if (source.publishedAt) {
     const daysOld = (Date.now() - Date.parse(source.publishedAt)) / (1000 * 60 * 60 * 24);
-    if (daysOld > 30) {
-      score += 16;
+    if (daysOld > 180) {
+      score += 20;
       reasons.push("older timestamp");
-    } else if (daysOld > 7) {
-      score += 8;
+    } else if (daysOld > 30) {
+      score += 12;
       reasons.push("dated source");
     }
   }
 
-  const haystack = `${source.title} ${source.snippet}`.toLowerCase();
-  const exact = context.keyPhrases.some((phrase) => phrase && haystack.includes(phrase.toLowerCase()));
-  if (exact) {
-    score += 14;
-    reasons.push("exact phrase overlap");
+  const exactCaption = context.keyPhrases.some((phrase) => phrase.length > 4 && text.includes(phrase.toLowerCase()));
+  if (exactCaption) {
+    score += 15;
+    reasons.push("exact caption/phrase match");
   }
 
-  if (source.visualScore > 0) {
-    score += Math.min(18, Math.round(source.visualScore / 6));
-    reasons.push("visual similarity");
+  if (source.visualScore) {
+    score += Math.min(20, Math.round(source.visualScore / 5));
+    reasons.push("visual similarity match");
   }
 
-  if (source.sourceType === "post_extract") {
-    score += 18;
-    reasons.push("direct post extraction");
+  if (context.creatorHints.some((hint) => hint && source.author && source.author.toLowerCase().includes(hint))) {
+    score += 12;
+    reasons.push("original creator handle hint");
   }
 
-  const repostWords = /(repost|compilation|reaction|mirror|reupload|recap)/i;
-  if (repostWords.test(`${source.title} ${source.snippet}`)) {
-    score -= 12;
-    reasons.push("possible repost signal");
+  if (context.watermarkHints.some((hint) => hint && text.includes(hint.toLowerCase()))) {
+    score += 10;
+    reasons.push("watermark/ocr clue overlap");
+  }
+
+  if (source.linkedOriginalSource) {
+    score += 8;
+    reasons.push("links to potential original source");
+  }
+
+  if (/(repost|compilation|reaction|mirror|reupload|duet)/i.test(text)) {
+    score -= 14;
+    reasons.push("repost/copy signal");
   }
 
   const authority = domainAuthorityScore(source.url);
   score += authority;
   reasons.push("source authority");
 
-  if (context.ocrHandles.some((handle) => haystack.includes(handle.toLowerCase()))) {
-    score += 8;
-    reasons.push("handle watermark overlap");
-  }
-
   const host = getPlatformFromUrl(source.url || "");
-  const pointingBack = context.hostFrequency[host] > 1;
-  if (pointingBack) {
+  if ((context.hostFrequency[host] || 0) > 1) {
     score += 6;
-    reasons.push("corroborated by other sources");
+    reasons.push("cross-source corroboration");
   }
 
-  const clamped = Math.max(0, Math.min(100, score));
-  return { score: clamped, reasons };
+  const backLinks = context.backLinks[source.url] || 0;
+  if (backLinks > 0) {
+    score += Math.min(12, backLinks * 3);
+    reasons.push("other posts point back here");
+  }
+
+  return { score: Math.max(0, Math.min(100, score)), reasons };
 }
 
-function pickEarliest(entries) {
-  const dated = entries.filter((item) => item.publishedAt);
-  if (!dated.length) return null;
-  return dated.slice().sort((a, b) => Date.parse(a.publishedAt) - Date.parse(b.publishedAt))[0];
+function originLikelihood(score) {
+  if (score >= 75) return "high";
+  if (score >= 50) return "medium";
+  return "low";
+}
+
+function confidenceBand(value) {
+  if (value >= 78) return "strong";
+  if (value >= 55) return "okay";
+  return "weak";
+}
+
+function confidenceReason(value) {
+  if (value >= 78) return "Multiple early and corroborated cross-platform sources agree.";
+  if (value >= 55) return "Signals are decent, but some provenance fields are incomplete.";
+  return "Evidence is sparse or conflicting, so origin remains uncertain.";
+}
+
+function sourceClaimPrefix(score) {
+  if (score >= 82) return "confirmed original source";
+  if (score >= 65) return "likely original source";
+  return "possible original source";
 }
 
 function buildLore(entries, ocr) {
   const lines = [];
-  if (ocr?.text) lines.push(`OCR clues: ${compactText(ocr.text, 160)}`);
-  const snippets = entries
-    .map((e) => e.snippet)
+  if (ocr?.text) lines.push(`OCR clues: ${compactText(ocr.text, 170)}`);
+  entries
+    .map((entry) => entry.snippet)
     .filter(Boolean)
     .slice(0, 3)
-    .map((text) => compactText(text, 160));
-  snippets.forEach((s) => lines.push(s));
+    .forEach((snippet) => lines.push(compactText(snippet, 170)));
   return lines.length ? lines.map((line) => `- ${line}`).join("\n") : "Not enough textual context found yet.";
 }
 
 function buildWhyViral(entries) {
-  const social = entries.filter((e) => ["x", "instagram", "facebook", "tiktok", "reddit"].includes(e.platform)).length;
-  const visual = entries.filter((e) => e.sourceType === "visual_match").length;
-  const news = entries.filter((e) => e.sourceType.includes("news")).length;
+  const social = entries.filter((entry) => SOCIAL_PLATFORMS.includes(entry.platform)).length;
+  const visual = entries.filter((entry) => entry.sourceType === "visual_match").length;
   const reasons = [];
-  if (social >= 3) reasons.push("cross-platform social spread");
-  if (visual >= 3) reasons.push("strong visual repost trails");
-  if (news >= 1) reasons.push("news/index coverage");
-  return reasons.length ? `${reasons.join(", ")}.` : "Signals are still limited across platforms.";
+  if (social >= 4) reasons.push("cross-platform meme propagation");
+  if (visual >= 3) reasons.push("repeated visual matches across reposts");
+  if (entries.some((entry) => entry.sourceType.includes("news"))) reasons.push("index/news pickup");
+  return reasons.length ? `${reasons.join(", ")}.` : "Viral spread signals are still limited.";
 }
 
 function buildRedFlags(inputType, entries, confidenceScore) {
   const flags = [];
   if ([INPUT_TYPES.IMAGE_UPLOAD, INPUT_TYPES.SCREENSHOT_UPLOAD].includes(inputType)) {
-    flags.push("image evidence can be reposted without provenance");
+    flags.push("image-only trails can hide original uploader");
   }
-  if (entries.filter((e) => !e.publishedAt).length > entries.length / 2) {
-    flags.push("many sources missing dates");
+  if (entries.filter((entry) => !entry.publishedAt).length > entries.length / 2) {
+    flags.push("many sources missing clear timestamps");
   }
-  if (confidenceScore < 60) {
-    flags.push("origin remains uncertain; treat as possible original source");
+  if (confidenceScore < 65) {
+    flags.push("origin currently uncertain");
   }
   return flags.length ? `${flags.join("; ")}.` : "No major red flags.";
 }
@@ -568,21 +709,18 @@ function toFormattedReport(result) {
     `Why it is viral: ${result.whyViral}`,
     "Best links:",
   ];
-
   if (!result.bestLinks.length) {
     lines.push("- None");
   } else {
     result.bestLinks.forEach((link) => {
       lines.push(
-        `- [${link.platform}] ${link.title} | ${link.url} | date: ${link.date || "unknown"} | confidence: ${link.confidence}/100 | why: ${link.whyItMatters} | snippet: ${link.snippet || "N/A"}`,
+        `- [${link.platform}] ${link.title} | author: ${link.author || "unknown"} | ${link.date || "unknown"} | ${link.url} | confidence ${link.confidence}/100 (${link.originLikelihood}) | why: ${link.whyItMatters} | snippet: ${link.snippet || "N/A"}`,
       );
     });
   }
-
   lines.push(`Red flags: ${result.redFlags}`);
   lines.push(`Confidence Score: ${result.confidenceScore}`);
   lines.push(`Source Quality: ${result.sourceQuality}`);
-  lines.push(`Confidence reason: ${result.confidenceReason}`);
   lines.push(`Verdict: ${result.verdict}`);
   return lines.join("\n");
 }
@@ -591,78 +729,101 @@ app.post("/api/research", upload.single("file"), async (req, res) => {
   try {
     const rawInput = (req.body?.input || "").trim();
     const inputType = detectInputType(rawInput, req.file);
+    const isUrlInput = isLikelyUrl(rawInput);
     const baseQuery =
-      (isLikelyUrl(rawInput) ? phraseFromUrl(rawInput) : rawInput) ||
+      (isUrlInput ? phraseFromUrl(rawInput) : rawInput) ||
       req.file?.originalname?.replace(/\.[a-zA-Z0-9]+$/, "").replace(/[_-]+/g, " ") ||
       "";
-
     if (!baseQuery && !req.file) {
       return res.status(400).json({ error: "Provide text/link input or upload an image." });
     }
 
     const coverage = [];
-    const sources = [];
     const errors = [];
-    let ocr = null;
-    let postExtract = null;
-    let reverseImage = { hostedImageUrl: null, visualMatches: [], reverseSearchLinks: [] };
-
-    const initialTasks = [];
-
-    if (req.file && req.file.mimetype?.startsWith("image/")) {
-      initialTasks.push(
-        (async () => {
-          const hostedImageUrl = await uploadImage(req.file);
-          const encoded = encodeURIComponent(hostedImageUrl);
-          reverseImage.hostedImageUrl = hostedImageUrl;
-          reverseImage.reverseSearchLinks = [
-            `https://lens.google.com/uploadbyurl?url=${encoded}`,
-            `https://www.bing.com/images/search?q=imgurl:${encoded}&view=detailv2&iss=sbi`,
-            `https://yandex.com/images/search?rpt=imageview&url=${encoded}`,
-          ];
-          coverage.push("image_upload");
-        })(),
-      );
-
-      initialTasks.push(
-        (async () => {
-          ocr = await runOCR(req.file);
-          coverage.push("ocr");
-        })(),
-      );
-    }
-
-    if (isLikelyPostUrl(inputType) && isLikelyUrl(rawInput)) {
-      initialTasks.push(
-        (async () => {
-          postExtract = await extractPostDetails(rawInput);
-          sources.push(
-            normalizeSource({
-              sourceType: "post_extract",
-              platform: postExtract.platform,
-              title: postExtract.title,
-              url: postExtract.url,
-              snippet: postExtract.description,
-              date: postExtract.publishedAt,
-              author: postExtract.author,
-              image: postExtract.image,
-            }),
-          );
-          coverage.push("post_extract");
-        })(),
-      );
-    }
-
-    const initialSettled = await Promise.allSettled(initialTasks);
-    initialSettled.forEach((task) => {
-      if (task.status === "rejected") errors.push(task.reason?.message || "initial task failed");
+    const sources = [];
+    const socialSourcesChecked = {};
+    SOCIAL_PLATFORMS.forEach((platform) => {
+      socialSourcesChecked[platform] = { status: SOCIAL_STATUS_VALUES.SKIPPED, detail: "not searched yet" };
     });
 
-    if (SERPAPI_KEY && reverseImage.hostedImageUrl) {
+    let ocr = null;
+    let reverseImage = { hostedImageUrl: null, visualMatches: [], reverseSearchLinks: [] };
+    let extractedPost = null;
+
+    const preTasks = [];
+    if (req.file && req.file.mimetype?.startsWith("image/")) {
+      preTasks.push(
+        (async () => {
+          try {
+            const hosted = await uploadImage(req.file);
+            const encoded = encodeURIComponent(hosted);
+            reverseImage.hostedImageUrl = hosted;
+            reverseImage.reverseSearchLinks = [
+              `https://lens.google.com/uploadbyurl?url=${encoded}`,
+              `https://www.bing.com/images/search?q=imgurl:${encoded}&view=detailv2&iss=sbi`,
+              `https://yandex.com/images/search?rpt=imageview&url=${encoded}`,
+            ];
+            coverage.push("image_upload");
+          } catch (error) {
+            errors.push(`image upload failed: ${error.message}`);
+          }
+        })(),
+      );
+      preTasks.push(
+        (async () => {
+          try {
+            ocr = await runOCR(req.file);
+            coverage.push("ocr");
+          } catch (error) {
+            errors.push(`ocr failed: ${error.message}`);
+          }
+        })(),
+      );
+    }
+
+    if (isUrlInput) {
+      preTasks.push(
+        (async () => {
+          try {
+            const adapter = getAdapterForUrl(rawInput);
+            const adapterContext = {
+              extractOpenGraph,
+              extractRedditJson,
+              extractLinkedSource,
+              extractEngagementFromText,
+              detectRepostIndicators,
+            };
+            extractedPost = await adapter.extractFromUrl(rawInput, adapterContext);
+            coverage.push(`url_extract:${adapter.platform}`);
+            sources.push(
+              normalizeSource({
+                sourceType: "post_extract",
+                platform: extractedPost.platform,
+                title: extractedPost.title,
+                url: extractedPost.url,
+                snippet: extractedPost.caption,
+                author: extractedPost.author,
+                date: extractedPost.date,
+                image: extractedPost.media,
+                comments: extractedPost.comments,
+                engagement: extractedPost.engagement,
+                linkedOriginalSource: extractedPost.linkedOriginalSource,
+              }),
+            );
+          } catch (error) {
+            errors.push(`url extraction failed: ${error.message}`);
+          }
+        })(),
+      );
+    }
+
+    await Promise.allSettled(preTasks);
+
+    if (reverseImage.hostedImageUrl && SERPAPI_KEY) {
       try {
-        const lens = await serpGoogleLens(reverseImage.hostedImageUrl);
-        reverseImage.visualMatches = lens.visualMatches.slice(0, 10).map((entry) => ({
-          rank: entry.rank,
+        const lensMatches = await serpGoogleLens(reverseImage.hostedImageUrl);
+        reverseImage.visualMatches = lensMatches.slice(0, 10).map((entry, index) => ({
+          rank: index + 1,
           title: entry.title,
           source: entry.platform,
           link: entry.url,
@@ -670,118 +831,182 @@ app.post("/api/research", upload.single("file"), async (req, res) => {
           snippet: entry.snippet,
           visualScore: entry.visualScore,
         }));
-        sources.push(...lens.visualMatches);
+        sources.push(...lensMatches);
         coverage.push("serpapi_lens");
       } catch (error) {
         errors.push(`serpapi lens failed: ${error.message}`);
-        coverage.push("serpapi_lens_failed");
       }
     }
 
-    const effectiveQuery = postExtract?.title || baseQuery;
-    const queries = makeQueryCandidates(effectiveQuery, ocr);
-    const phraseMatches = [effectiveQuery, rawInput, ...(ocr?.handles || [])].filter(Boolean);
+    const effectiveQuery = extractedPost?.title || baseQuery;
+    const queries = makeSearchQueries(effectiveQuery, ocr, extractedPost);
 
-    const searchTasks = [];
-    const addTask = (name, task) => searchTasks.push({ name, task });
+    const broadTasks = [
+      SERPAPI_KEY ? serpWebSearch(queries[0] || effectiveQuery) : fallbackDuckDuckGo(queries[0] || effectiveQuery),
+      SERPAPI_KEY ? serpNewsSearch(effectiveQuery) : fallbackNewsRss(effectiveQuery),
+    ];
+    const broadSettled = await Promise.allSettled(broadTasks);
+    if (broadSettled[0]?.status === "fulfilled") {
+      coverage.push("web");
+      sources.push(...broadSettled[0].value);
+    } else if (broadSettled[0]) {
+      errors.push(`web search failed: ${broadSettled[0].reason?.message || "unknown"}`);
+    }
+    if (broadSettled[1]?.status === "fulfilled") {
+      coverage.push("news");
+      sources.push(...broadSettled[1].value);
+    } else if (broadSettled[1]) {
+      errors.push(`news search failed: ${broadSettled[1].reason?.message || "unknown"}`);
+    }
 
-    queries.slice(0, 3).forEach((query) => {
-      addTask(`web:${query}`, SERPAPI_KEY ? serpWebSearch(query) : fallbackDuckDuckGo(query));
-    });
+    const adapterContext = {
+      searchBySite,
+      normalizeSource,
+      extractOpenGraph,
+      extractRedditJson,
+      extractLinkedSource,
+      extractEngagementFromText,
+      detectRepostIndicators,
+    };
 
-    addTask("news", SERPAPI_KEY ? serpNewsSearch(effectiveQuery) : fallbackNewsRss(effectiveQuery));
-    addTask("reddit", searchReddit(effectiveQuery));
+    const socialAdapters = getSocialAdapters();
+    const socialPlatformTasks = socialAdapters.map(async (adapter) => {
+      const perQueryTasks = queries.slice(0, 3).map((query) => adapter.searchPlatform(query, adapterContext));
+      const settled = await Promise.allSettled(perQueryTasks);
+      const results = [];
+      let hasChecked = false;
+      let hasApiMissing = detectApifyActorStatus(adapter.platform) === SOCIAL_STATUS_VALUES.API_MISSING;
+      let hasFailed = false;
 
-    ["x.com", "instagram.com", "facebook.com", "tiktok.com"].forEach((site) => {
-      const socialQuery = `site:${site} ${effectiveQuery}`;
-      addTask(
-        `social:${site}`,
-        SERPAPI_KEY ? serpWebSearch(socialQuery) : fallbackDuckDuckGo(socialQuery),
-      );
-    });
+      settled.forEach((entry) => {
+        if (entry.status === "fulfilled") {
+          const payload = entry.value;
+          (payload.results || []).forEach((item) => results.push(adapter.normalizeResult(item, adapterContext)));
+          if (payload.status === SOCIAL_STATUS_VALUES.CHECKED) hasChecked = true;
+          if (payload.status === SOCIAL_STATUS_VALUES.API_MISSING) hasApiMissing = true;
+          if (payload.status === SOCIAL_STATUS_VALUES.FAILED) hasFailed = true;
+        } else {
+          hasFailed = true;
+          errors.push(`${adapter.platform} search failed: ${entry.reason?.message || "unknown error"}`);
+        }
+      });
 
-    const settled = await Promise.allSettled(searchTasks.map((item) => item.task));
-    settled.forEach((result, index) => {
-      const taskName = searchTasks[index].name;
-      if (result.status === "fulfilled") {
-        sources.push(...result.value);
-        coverage.push(taskName);
+      if (hasChecked) {
+        socialSourcesChecked[adapter.platform] = {
+          status: SOCIAL_STATUS_VALUES.CHECKED,
+          detail: hasApiMissing ? "checked via fallback; Apify API missing" : "checked",
+        };
+      } else if (hasApiMissing && !hasFailed) {
+        socialSourcesChecked[adapter.platform] = {
+          status: SOCIAL_STATUS_VALUES.API_MISSING,
+          detail: "Apify token/actor missing and no fallback hits",
+        };
+      } else if (hasFailed) {
+        socialSourcesChecked[adapter.platform] = { status: SOCIAL_STATUS_VALUES.FAILED, detail: "search failed" };
       } else {
-        coverage.push(`${taskName}_failed`);
-        errors.push(`${taskName}: ${result.reason?.message || "failed"}`);
+        socialSourcesChecked[adapter.platform] = { status: SOCIAL_STATUS_VALUES.SKIPPED, detail: "no query" };
+      }
+      return results;
+    });
+
+    const socialResults = await Promise.allSettled(socialPlatformTasks);
+    socialResults.forEach((entry) => {
+      if (entry.status === "fulfilled") {
+        sources.push(...entry.value);
       }
     });
 
-    const deduped = uniqueByUrlAndTitle(sources).filter((item) => item.url);
-    const hostFrequency = deduped.reduce((acc, item) => {
-      const host = getPlatformFromUrl(item.url);
+    const cleaned = sources
+      .filter((entry) => entry.url)
+      .map((entry) => ({ ...entry, title: compactText(entry.title, 180), snippet: compactText(entry.snippet, 320) }));
+
+    const dedupByUrl = new Map();
+    cleaned.forEach((entry) => {
+      const key = `${entry.url}|${entry.title}`.toLowerCase();
+      if (!dedupByUrl.has(key)) dedupByUrl.set(key, entry);
+    });
+    const deduped = [...dedupByUrl.values()];
+
+    const backLinks = {};
+    deduped.forEach((entry) => {
+      deduped.forEach((candidate) => {
+        if (!entry.url || entry === candidate) return;
+        const text = `${candidate.snippet} ${candidate.title}`;
+        if (text.includes(entry.url)) {
+          backLinks[entry.url] = (backLinks[entry.url] || 0) + 1;
+        }
+      });
+    });
+
+    const hostFrequency = deduped.reduce((acc, entry) => {
+      const host = getPlatformFromUrl(entry.url || "");
       acc[host] = (acc[host] || 0) + 1;
       return acc;
     }, {});
 
+    const creatorHints = [
+      extractedPost?.author ? extractedPost.author.replace(/^@/, "").toLowerCase() : null,
+      ...(ocr?.handles || []).map((value) => value.replace(/^[@#]/, "").toLowerCase()),
+    ].filter(Boolean);
+
     const context = {
-      keyPhrases: phraseMatches.map((v) => normalizeWhitespace(v)).filter(Boolean),
-      ocrHandles: ocr?.handles || [],
+      keyPhrases: [effectiveQuery, rawInput, extractedPost?.caption || "", ...(ocr?.handles || [])]
+        .map((item) => normalizeWhitespace(item))
+        .filter(Boolean),
+      watermarkHints: [...(ocr?.handles || []), ...(ocr?.watermarks || [])],
+      creatorHints,
       hostFrequency,
+      backLinks,
     };
 
-    const scored = deduped.map((item) => {
-      const score = scoreSource(item, context);
-      return { ...item, score: score.score, scoreReasons: score.reasons };
+    const scored = deduped.map((entry) => {
+      const scoredEntry = scoreSource(entry, context);
+      return { ...entry, score: scoredEntry.score, scoreReasons: scoredEntry.reasons };
     });
-    scored.sort((a, b) => b.score - a.score);
 
-    const earliest = pickEarliest(scored);
-    const originalCandidate = scored[0] || null;
-    const confidenceScore = scored.length
-      ? Math.min(100, Math.round(scored[0].score * 0.7 + Math.min(30, scored.length * 1.5)))
-      : 15;
-    const sourceQuality = confidenceScore >= 75 ? "strong" : confidenceScore >= 50 ? "okay" : "weak";
-    const confidenceReason =
-      confidenceScore >= 75
-        ? "Multiple high-authority, cross-linked signals agree on likely origin."
-        : confidenceScore >= 50
-          ? "Some corroboration exists, but key provenance fields are incomplete."
-          : "Sparse or conflicting evidence; origin is only a possible match.";
+    const clustered = clusterAndPickStrongest(scored).sort((a, b) => b.score - a.score);
+    const earliest = pickEarliest(clustered);
+    const top = clustered[0] || null;
+    const confidenceScore = top
+      ? Math.min(100, Math.round(top.score * 0.72 + Math.min(25, clustered.length * 1.8)))
+      : 18;
+    const sourceQuality = confidenceBand(confidenceScore);
+    const sourcePrefix = sourceClaimPrefix(confidenceScore);
 
-    const originalPrefix = confidenceScore < 60 ? "possible original source: " : "";
-
-    const bestLinks = scored.slice(0, 8).map((item) => ({
-      platform: item.platform,
-      title: item.title,
-      url: item.url,
-      date: toDateOnly(item.publishedAt),
-      snippet: item.snippet,
-      whyItMatters: item.scoreReasons.slice(0, 3).join(", ") || "supporting context",
-      confidence: item.score,
+    const bestLinks = clustered.slice(0, 8).map((entry) => ({
+      platform: entry.platform,
+      title: entry.title,
+      author: entry.author,
+      date: toDateOnly(entry.publishedAt),
+      url: entry.url,
+      snippet: entry.snippet,
+      whyItMatters: entry.scoreReasons.slice(0, 4).join(", ") || "context signal",
+      confidence: entry.score,
+      originLikelihood: originLikelihood(entry.score),
     }));
 
     const result = {
       inputType,
-      name: compactText(
-        postExtract?.title || (scored[0] && scored[0].title) || effectiveQuery || rawInput || "Unknown",
-        100,
-      ),
-      whatItIs: `Detected as ${inputType.replace(/_/g, " ")}. Aggregated ${scored.length} ranked sources.`,
-      originalSource: originalCandidate
-        ? `${originalPrefix}${originalCandidate.title} (${originalCandidate.url})`
-        : null,
+      name: compactText(top?.title || extractedPost?.title || effectiveQuery || "Unknown", 100),
+      whatItIs: `Detected as ${inputType.replace(/_/g, " ")}. Aggregated ${clustered.length} clustered social/web sources.`,
+      originalSource: top ? `${sourcePrefix}: ${top.title} (${top.url})` : null,
       earliestPostFound: earliest
         ? `${earliest.publishedAt || "Unknown date"} - ${earliest.title} (${earliest.url})`
         : null,
-      lore: buildLore(scored, ocr),
-      whyViral: buildWhyViral(scored),
+      lore: buildLore(clustered, ocr),
+      whyViral: buildWhyViral(clustered),
       bestLinks,
-      redFlags: buildRedFlags(inputType, scored, confidenceScore),
+      redFlags: buildRedFlags(inputType, clustered, confidenceScore),
       confidenceScore,
       sourceQuality,
-      confidenceReason,
-      verdict: buildVerdict(scored),
+      confidenceReason: confidenceReason(confidenceScore),
+      verdict: buildVerdict(clustered),
       reverseImage,
-      extractedPost: postExtract,
+      extractedPost,
       ocr,
+      socialSourcesChecked,
       coverage: [...new Set(coverage)],
-      evidence: scored.slice(0, 25),
+      evidence: clustered.slice(0, 25),
       errors,
     };
 
@@ -792,7 +1017,11 @@ app.post("/api/research", upload.single("file"), async (req, res) => {
 });
 
 app.get("/api/health", (_req, res) => {
-  res.json({ ok: true, serpApiConfigured: Boolean(SERPAPI_KEY) });
+  res.json({
+    ok: true,
+    serpApiConfigured: Boolean(SERPAPI_KEY),
+    apifyConfigured: Boolean(APIFY_TOKEN),
+  });
 });
 
 app.listen(PORT, () => {
