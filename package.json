@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js",
+    "eval": "node tools/eval.js",
     "test": "node -e \"console.log('No automated tests configured')\""
   },
   "repository": {

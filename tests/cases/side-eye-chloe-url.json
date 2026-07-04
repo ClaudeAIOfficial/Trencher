@@ -1,0 +1,10 @@
+{
+  "id": "side-eye-chloe-url",
+  "inputType": "url",
+  "inputValue": "https://knowyourmeme.com/memes/side-eyeing-chloe",
+  "expectedName": "Side-Eyeing Chloe",
+  "expectedOriginalSourceUrl": "https://knowyourmeme.com/memes/side-eyeing-chloe",
+  "expectedPlatform": "knowyourmeme.com",
+  "expectedKeywords": ["chloe", "viral", "reaction", "meme"],
+  "notes": "Direct URL extraction should stay anchored to known source."
+}

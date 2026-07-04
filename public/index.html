@@ -82,6 +82,23 @@
             <div id="confidence-box"></div>
           </div>
         </div>
+
+        <section class="card" id="feedback-card">
+          <h3>Was this correct?</h3>
+          <form id="feedback-form">
+            <div class="feedback-options">
+              <label><input type="radio" name="verdict" value="correct" required /> Correct</label>
+              <label><input type="radio" name="verdict" value="partially_correct" /> Partially correct</label>
+              <label><input type="radio" name="verdict" value="wrong" /> Wrong</label>
+            </div>
+            <label for="better-url">Better original source URL (optional)</label>
+            <input id="better-url" name="betterOriginalSourceUrl" type="url" placeholder="https://..." />
+            <label for="feedback-notes">Notes (optional)</label>
+            <textarea id="feedback-notes" name="notes" rows="3"></textarea>
+            <button type="submit" id="feedback-submit-btn">Save feedback</button>
+            <p id="feedback-status"></p>
+          </form>
+        </section>
       </section>
     </main>
 

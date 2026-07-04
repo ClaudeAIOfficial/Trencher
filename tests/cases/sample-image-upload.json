@@ -1,0 +1,10 @@
+{
+  "id": "sample-image-upload",
+  "inputType": "image",
+  "filePath": "tests/assets/sample-upload.png",
+  "expectedName": "Sample",
+  "expectedOriginalSourceUrl": "",
+  "expectedPlatform": "",
+  "expectedKeywords": ["sample", "image"],
+  "notes": "Smoke test for image upload and OCR/reverse search pipeline."
+}

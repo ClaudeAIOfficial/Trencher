@@ -3,6 +3,8 @@ const multer = require("multer");
 const cheerio = require("cheerio");
 const Tesseract = require("tesseract.js");
 const dotenv = require("dotenv");
+const fs = require("fs");
+const path = require("path");
 const {
   SOCIAL_PLATFORMS,
   getPlatformFromUrl,
@@ -20,6 +22,10 @@ const APIFY_TOKEN = process.env.APIFY_TOKEN || "";
 const SERP_API_BASE = "https://serpapi.com/search.json";
 const APIFY_API_BASE = "https://api.apify.com/v2";
 const DEFAULT_TIMEOUT_MS = 12000;
+const DATA_DIR = path.join(__dirname, "data");
+const LOGS_DIR = path.join(__dirname, "logs");
+const FEEDBACK_FILE = path.join(DATA_DIR, "feedback.json");
+const RESEARCH_LOG_FILE = path.join(LOGS_DIR, "research-runs.jsonl");
 const SOCIAL_STATUS_VALUES = {
   CHECKED: "checked",
   FAILED: "failed",
@@ -30,6 +36,9 @@ const SOCIAL_STATUS_VALUES = {
 app.use(express.json({ limit: "2mb" }));
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static("public"));
+
+fs.mkdirSync(DATA_DIR, { recursive: true });
+fs.mkdirSync(LOGS_DIR, { recursive: true });
 
 const INPUT_TYPES = {
   IMAGE_UPLOAD: "image_upload",
@@ -122,6 +131,30 @@ function detectInputType(rawInput, file) {
   if (words.length >= 3 && input.length < 120) return INPUT_TYPES.CAPTION;
   if (words.length <= 4) return INPUT_TYPES.NAME_OR_ENTITY;
   return INPUT_TYPES.UNKNOWN;
+}
+
+function nowMs() {
+  return Date.now();
+}
+
+function readFeedbackStore() {
+  try {
+    if (!fs.existsSync(FEEDBACK_FILE)) return [];
+    const raw = fs.readFileSync(FEEDBACK_FILE, "utf8");
+    if (!raw.trim()) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (_error) {
+    return [];
+  }
+}
+
+function writeFeedbackStore(entries) {
+  fs.writeFileSync(FEEDBACK_FILE, JSON.stringify(entries, null, 2));
+}
+
+function appendResearchLog(entry) {
+  fs.appendFileSync(RESEARCH_LOG_FILE, `${JSON.stringify(entry)}\n`);
 }
 
 async function fetchWithTimeout(url, options = {}, timeoutMs = DEFAULT_TIMEOUT_MS) {
@@ -239,17 +272,20 @@ async function runOCR(file) {
   return { text, handles, timestamps, watermarks, logoCandidates };
 }
 
-async function serpApiRequest(params, timeoutMs = DEFAULT_TIMEOUT_MS) {
+async function serpApiRequest(params, timeoutMs = DEFAULT_TIMEOUT_MS, metrics = null) {
   if (!SERPAPI_KEY) throw new Error("SERPAPI_KEY missing");
+  const started = nowMs();
   const url = new URL(SERP_API_BASE);
   Object.entries({ ...params, api_key: SERPAPI_KEY, no_cache: "true" }).forEach(([k, v]) =>
     url.searchParams.set(k, String(v)),
   );
-  return fetchJson(url.toString(), {}, timeoutMs);
+  const response = await fetchJson(url.toString(), {}, timeoutMs);
+  if (metrics) metrics.serpApiMs += nowMs() - started;
+  return response;
 }
 
-async function serpWebSearch(query) {
-  const data = await serpApiRequest({ engine: "google", q: query, num: 10 });
+async function serpWebSearch(query, metrics = null) {
+  const data = await serpApiRequest({ engine: "google", q: query, num: 10 }, DEFAULT_TIMEOUT_MS, metrics);
   return (data?.organic_results || []).map((item) =>
     normalizeSource({
       sourceType: "web",
@@ -262,8 +298,8 @@ async function serpWebSearch(query) {
   );
 }
 
-async function serpNewsSearch(query) {
-  const data = await serpApiRequest({ engine: "google_news", q: query, num: 10 });
+async function serpNewsSearch(query, metrics = null) {
+  const data = await serpApiRequest({ engine: "google_news", q: query, num: 10 }, DEFAULT_TIMEOUT_MS, metrics);
   return (data?.news_results || []).map((item) =>
     normalizeSource({
       sourceType: "news",
@@ -277,8 +313,8 @@ async function serpNewsSearch(query) {
   );
 }
 
-async function serpGoogleLens(imageUrl) {
-  const data = await serpApiRequest({ engine: "google_lens", url: imageUrl }, 18000);
+async function serpGoogleLens(imageUrl, metrics = null) {
+  const data = await serpApiRequest({ engine: "google_lens", url: imageUrl }, 18000, metrics);
   return (data?.visual_matches || []).map((item, index) =>
     normalizeSource({
       sourceType: "visual_match",
@@ -411,11 +447,12 @@ function detectApifyActorStatus(platform) {
   return SOCIAL_STATUS_VALUES.CHECKED;
 }
 
-async function runApifyActor(platform, query) {
+async function runApifyActor(platform, query, metrics = null) {
   const actorId = APIFY_ACTOR_IDS[platform];
   if (!APIFY_TOKEN || !actorId) {
     return { status: SOCIAL_STATUS_VALUES.API_MISSING, items: [] };
   }
+  const started = nowMs();
   const url =
     `${APIFY_API_BASE}/acts/${encodeURIComponent(actorId)}/run-sync-get-dataset-items` +
     `?token=${encodeURIComponent(APIFY_TOKEN)}&memory=512`;
@@ -434,8 +471,10 @@ async function runApifyActor(platform, query) {
       { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(input) },
       18000,
     );
+    if (metrics) metrics.apifyMs += nowMs() - started;
     return { status: SOCIAL_STATUS_VALUES.CHECKED, items: Array.isArray(items) ? items : [] };
   } catch (_error) {
+    if (metrics) metrics.apifyMs += nowMs() - started;
     return { status: SOCIAL_STATUS_VALUES.FAILED, items: [] };
   }
 }
@@ -466,12 +505,12 @@ function mapApifyItemToSource(platform, item) {
   });
 }
 
-async function searchBySite(platform, query, sites) {
+async function searchBySite(platform, query, sites, metrics = null) {
   if (!query) {
     return { status: SOCIAL_STATUS_VALUES.SKIPPED, apiStatus: SOCIAL_STATUS_VALUES.SKIPPED, results: [] };
   }
 
-  const apify = await runApifyActor(platform, query);
+  const apify = await runApifyActor(platform, query, metrics);
   const apifyResults = apify.items.map((item) => mapApifyItemToSource(platform, item)).filter((item) => item.url);
   if (apify.status === SOCIAL_STATUS_VALUES.CHECKED && apifyResults.length) {
     return { status: SOCIAL_STATUS_VALUES.CHECKED, apiStatus: SOCIAL_STATUS_VALUES.CHECKED, results: apifyResults };
@@ -479,7 +518,7 @@ async function searchBySite(platform, query, sites) {
 
   const siteQueries = sites.map((site) => `site:${site} ${query}`);
   const fallbackTasks = siteQueries.map((siteQuery) =>
-    SERPAPI_KEY ? serpWebSearch(siteQuery) : fallbackDuckDuckGo(siteQuery),
+    SERPAPI_KEY ? serpWebSearch(siteQuery, metrics) : fallbackDuckDuckGo(siteQuery),
   );
   const settled = await Promise.allSettled(fallbackTasks);
   const fallbackResults = settled
@@ -726,6 +765,17 @@ function toFormattedReport(result) {
 }
 
 app.post("/api/research", upload.single("file"), async (req, res) => {
+  const runStartedAt = nowMs();
+  const metrics = {
+    totalMs: 0,
+    ocrMs: 0,
+    serpApiMs: 0,
+    apifyMs: 0,
+    rankingMs: 0,
+    platformsChecked: [],
+    failedSources: [],
+  };
+
   try {
     const rawInput = (req.body?.input || "").trim();
     const inputType = detectInputType(rawInput, req.file);
@@ -772,7 +822,9 @@ app.post("/api/research", upload.single("file"), async (req, res) => {
       preTasks.push(
         (async () => {
           try {
+            const ocrStarted = nowMs();
             ocr = await runOCR(req.file);
+            metrics.ocrMs += nowMs() - ocrStarted;
             coverage.push("ocr");
           } catch (error) {
             errors.push(`ocr failed: ${error.message}`);
@@ -821,7 +873,7 @@ app.post("/api/research", upload.single("file"), async (req, res) => {
 
     if (reverseImage.hostedImageUrl && SERPAPI_KEY) {
       try {
-        const lensMatches = await serpGoogleLens(reverseImage.hostedImageUrl);
+        const lensMatches = await serpGoogleLens(reverseImage.hostedImageUrl, metrics);
         reverseImage.visualMatches = lensMatches.slice(0, 10).map((entry, index) => ({
           rank: index + 1,
           title: entry.title,
@@ -842,8 +894,10 @@ app.post("/api/research", upload.single("file"), async (req, res) => {
     const queries = makeSearchQueries(effectiveQuery, ocr, extractedPost);
 
     const broadTasks = [
-      SERPAPI_KEY ? serpWebSearch(queries[0] || effectiveQuery) : fallbackDuckDuckGo(queries[0] || effectiveQuery),
-      SERPAPI_KEY ? serpNewsSearch(effectiveQuery) : fallbackNewsRss(effectiveQuery),
+      SERPAPI_KEY
+        ? serpWebSearch(queries[0] || effectiveQuery, metrics)
+        : fallbackDuckDuckGo(queries[0] || effectiveQuery),
+      SERPAPI_KEY ? serpNewsSearch(effectiveQuery, metrics) : fallbackNewsRss(effectiveQuery),
     ];
     const broadSettled = await Promise.allSettled(broadTasks);
     if (broadSettled[0]?.status === "fulfilled") {
@@ -860,7 +914,7 @@ app.post("/api/research", upload.single("file"), async (req, res) => {
     }
 
     const adapterContext = {
-      searchBySite,
+      searchBySite: (platform, query, sites) => searchBySite(platform, query, sites, metrics),
       normalizeSource,
       extractOpenGraph,
       extractRedditJson,
@@ -959,6 +1013,7 @@ app.post("/api/research", upload.single("file"), async (req, res) => {
       backLinks,
     };
 
+    const rankingStarted = nowMs();
     const scored = deduped.map((entry) => {
       const scoredEntry = scoreSource(entry, context);
       return { ...entry, score: scoredEntry.score, scoreReasons: scoredEntry.reasons };
@@ -972,6 +1027,19 @@ app.post("/api/research", upload.single("file"), async (req, res) => {
       : 18;
     const sourceQuality = confidenceBand(confidenceScore);
     const sourcePrefix = sourceClaimPrefix(confidenceScore);
+    metrics.rankingMs += nowMs() - rankingStarted;
+    metrics.totalMs = nowMs() - runStartedAt;
+    metrics.platformsChecked = SOCIAL_PLATFORMS.filter(
+      (platform) => socialSourcesChecked[platform]?.status === SOCIAL_STATUS_VALUES.CHECKED,
+    );
+    metrics.failedSources = [
+      ...new Set([
+        ...errors,
+        ...SOCIAL_PLATFORMS.filter(
+          (platform) => socialSourcesChecked[platform]?.status === SOCIAL_STATUS_VALUES.FAILED,
+        ).map((platform) => `${platform}: failed`),
+      ]),
+    ];
 
     const bestLinks = clustered.slice(0, 8).map((entry) => ({
       platform: entry.platform,
@@ -1008,10 +1076,30 @@ app.post("/api/research", upload.single("file"), async (req, res) => {
       coverage: [...new Set(coverage)],
       evidence: clustered.slice(0, 25),
       errors,
+      metrics,
     };
+
+    appendResearchLog({
+      at: new Date().toISOString(),
+      inputType,
+      input: rawInput || req.file?.originalname || "",
+      metrics,
+      confidenceScore: result.confidenceScore,
+      sourceQuality: result.sourceQuality,
+      verdict: result.verdict,
+    });
 
     return res.json({ result, formatted: toFormattedReport(result) });
   } catch (error) {
+    metrics.totalMs = nowMs() - runStartedAt;
+    metrics.failedSources = [...new Set(metrics.failedSources.concat([error.message || "unknown error"]))];
+    appendResearchLog({
+      at: new Date().toISOString(),
+      inputType: "unknown",
+      input: req.body?.input || req.file?.originalname || "",
+      metrics,
+      error: error.message || "Research failed unexpectedly.",
+    });
     return res.status(500).json({ error: error.message || "Research failed unexpectedly." });
   }
 });
@@ -1024,6 +1112,46 @@ app.get("/api/health", (_req, res) => {
   });
 });
 
-app.listen(PORT, () => {
-  console.log(`Viral Lore Agent running on http://localhost:${PORT}`);
+app.post("/api/feedback", (req, res) => {
+  try {
+    const payload = req.body || {};
+    const verdict = payload.verdict;
+    if (!["correct", "partially_correct", "wrong"].includes(verdict)) {
+      return res.status(400).json({ error: "verdict must be correct, partially_correct, or wrong" });
+    }
+    const entries = readFeedbackStore();
+    const record = {
+      id: `fb_${Date.now()}`,
+      createdAt: new Date().toISOString(),
+      verdict,
+      betterOriginalSourceUrl: payload.betterOriginalSourceUrl || null,
+      notes: payload.notes || "",
+      input: payload.input || "",
+      resultSnapshot: payload.resultSnapshot || null,
+    };
+    entries.push(record);
+    writeFeedbackStore(entries);
+    return res.json({ ok: true, record });
+  } catch (error) {
+    return res.status(500).json({ error: error.message || "Failed to save feedback" });
+  }
 });
+
+app.get("/api/feedback", (_req, res) => {
+  return res.json({ feedback: readFeedbackStore() });
+});
+
+let serverInstance = null;
+function startServer(port = PORT) {
+  if (serverInstance) return serverInstance;
+  serverInstance = app.listen(port, () => {
+    console.log(`Viral Lore Agent running on http://localhost:${port}`);
+  });
+  return serverInstance;
+}
+
+if (require.main === module) {
+  startServer();
+}
+
+module.exports = { app, startServer };

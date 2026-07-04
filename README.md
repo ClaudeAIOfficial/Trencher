@@ -116,6 +116,88 @@ The UI shows platform status in **Social Sources Checked**:
 - Reddit JSON/search endpoints may return 403 in some environments.
 - “Confirmed original source” is only used when confidence is strong; otherwise output uses “likely” or “possible” to avoid fake certainty.
 
+## Testing / evaluation mode
+
+Test cases live in:
+
+- `tests/cases/*.json`
+
+Each case supports:
+
+- `inputType`: `image`, `screenshot`, `url`, `text`
+- `inputValue` or `filePath`
+- `expectedName`
+- `expectedOriginalSourceUrl` (optional if unknown)
+- `expectedPlatform`
+- `expectedKeywords` (lore/context terms)
+- `notes`
+
+Run the evaluator:
+
+```bash
+npm run eval
+```
+
+Outputs:
+
+- `eval-report.json`
+- `eval-report.html`
+
+The evaluator scores:
+
+- name match
+- source URL match
+- platform match
+- lore keyword match
+- confidence calibration
+- speed
+
+If origin is uncertain, cases are marked **partial** (not pass) when evidence is incomplete.
+
+## Manual review feedback
+
+In the UI there is a **Was this correct?** section with:
+
+- Correct
+- Partially correct
+- Wrong
+- Better original source URL
+- Notes
+
+Feedback is saved locally through:
+
+- `POST /api/feedback`
+- `GET /api/feedback`
+
+Stored at:
+
+- `data/feedback.json`
+
+## Speed logging
+
+Every `/api/research` run writes structured timing logs to:
+
+- `logs/research-runs.jsonl`
+
+Including:
+
+- total time
+- OCR time
+- SerpApi time
+- Apify time
+- ranking time
+- platforms checked
+- failed sources
+
+## Accuracy improvement loop
+
+1. Add at least 10 real-world test cases to `tests/cases/`
+2. Run `npm run eval`
+3. Inspect `eval-report.json` and `eval-report.html`
+4. Review partial/failed cases and missing pieces
+5. Improve ranking + adapters + extraction rules
+6. Re-run `npm run eval` and compare metrics
+
 ## Run locally
 
 ```bash

@@ -39,16 +39,32 @@ label {
 }
 
 textarea,
-input[type="file"] {
+input[type="file"],
+input[type="url"] {
   width: 100%;
 }
 
-textarea {
+textarea,
+input[type="url"] {
   padding: 10px;
   border-radius: 8px;
   border: 1px solid #304170;
   background: #0b1430;
   color: #eff3ff;
+}
+
+.feedback-options {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.feedback-options label {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  margin: 0;
+  font-weight: 500;
 }
 
 button {

@@ -1,0 +1,10 @@
+{
+  "id": "harambe-text",
+  "inputType": "text",
+  "inputValue": "Dicks out for Harambe",
+  "expectedName": "Harambe",
+  "expectedOriginalSourceUrl": "",
+  "expectedPlatform": "reddit",
+  "expectedKeywords": ["harambe", "gorilla", "cincinnati", "viral"],
+  "notes": "Origin is often disputed; expected to allow partial outcomes."
+}

@@ -12,6 +12,11 @@ const bestLinksList = document.getElementById("best-links-list");
 const socialStatusList = document.getElementById("social-status-list");
 const confidenceBox = document.getElementById("confidence-box");
 const submitBtn = document.getElementById("submit-btn");
+const feedbackForm = document.getElementById("feedback-form");
+const feedbackStatus = document.getElementById("feedback-status");
+const feedbackSubmitBtn = document.getElementById("feedback-submit-btn");
+
+let lastResultPayload = null;
 
 function setStatus(message, isError = false) {
   statusCard.classList.remove("hidden");
@@ -36,6 +41,7 @@ function makeListItem(content, href = null) {
 
 function renderResult(payload) {
   const { result, formatted } = payload;
+  lastResultPayload = payload;
   formattedOutput.textContent = formatted;
   inputTypeEl.textContent = result.inputType;
 
@@ -95,6 +101,8 @@ function renderResult(payload) {
   }
 
   resultCard.classList.remove("hidden");
+  feedbackStatus.textContent = "";
+  feedbackForm.reset();
 }
 
 form.addEventListener("submit", async (event) => {
@@ -122,5 +130,56 @@ form.addEventListener("submit", async (event) => {
     setStatus(error.message || "Unexpected error.", true);
   } finally {
     submitBtn.disabled = false;
+  }
+});
+
+feedbackForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  if (!lastResultPayload) {
+    feedbackStatus.textContent = "Run research first before saving feedback.";
+    feedbackStatus.className = "error";
+    return;
+  }
+
+  feedbackSubmitBtn.disabled = true;
+  feedbackStatus.textContent = "Saving feedback...";
+  feedbackStatus.className = "";
+
+  try {
+    const formData = new FormData(feedbackForm);
+    const verdict = formData.get("verdict");
+    const betterOriginalSourceUrl = (formData.get("betterOriginalSourceUrl") || "").toString().trim();
+    const notes = (formData.get("notes") || "").toString().trim();
+    const input = document.getElementById("input").value || "";
+
+    const response = await fetch("/api/feedback", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        verdict,
+        betterOriginalSourceUrl: betterOriginalSourceUrl || null,
+        notes,
+        input,
+        resultSnapshot: {
+          name: lastResultPayload.result?.name,
+          originalSource: lastResultPayload.result?.originalSource,
+          confidenceScore: lastResultPayload.result?.confidenceScore,
+          sourceQuality: lastResultPayload.result?.sourceQuality,
+        },
+      }),
+    });
+
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.error || "Failed to save feedback.");
+    }
+
+    feedbackStatus.textContent = "Feedback saved locally.";
+    feedbackStatus.className = "";
+  } catch (error) {
+    feedbackStatus.textContent = error.message || "Unexpected error.";
+    feedbackStatus.className = "error";
+  } finally {
+    feedbackSubmitBtn.disabled = false;
   }
 });

@@ -1,0 +1,10 @@
+{
+  "id": "distracted-boyfriend-text",
+  "inputType": "text",
+  "inputValue": "distracted boyfriend meme",
+  "expectedName": "Distracted Boyfriend",
+  "expectedOriginalSourceUrl": "https://knowyourmeme.com/memes/distracted-boyfriend",
+  "expectedPlatform": "knowyourmeme.com",
+  "expectedKeywords": ["stock photo", "Antonio Guillem", "2017", "meme"],
+  "notes": "Classic meme origin sanity check."
+}
