@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Viral Lore Agent</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <div class="bg-grid"></div>
+
+  <div class="container">
+    <!-- ── Header ── -->
+    <header class="header">
+      <div class="logo-wrap">
+        <div class="logo-icon">
+          <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
+            <circle cx="18" cy="18" r="17" stroke="url(#g1)" stroke-width="2"/>
+            <circle cx="18" cy="18" r="8" fill="url(#g2)" opacity="0.8"/>
+            <path d="M18 6 L18 2M18 34 L18 30M6 18 L2 18M34 18 L30 18" stroke="#a78bfa" stroke-width="1.5" stroke-linecap="round"/>
+            <path d="M10 10 L7 7M26 26 L29 29M26 10 L29 7M10 26 L7 29" stroke="#7c3aed" stroke-width="1.5" stroke-linecap="round"/>
+            <defs>
+              <linearGradient id="g1" x1="0" y1="0" x2="36" y2="36">
+                <stop offset="0%" stop-color="#a78bfa"/>
+                <stop offset="100%" stop-color="#7c3aed"/>
+              </linearGradient>
+              <radialGradient id="g2" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stop-color="#c4b5fd"/>
+                <stop offset="100%" stop-color="#7c3aed"/>
+              </radialGradient>
+            </defs>
+          </svg>
+        </div>
+        <div class="logo-text">
+          <h1>Viral Lore Agent</h1>
+          <p>Uncover the origin, lore &amp; viral context of anything</p>
+        </div>
+      </div>
+    </header>
+
+    <!-- ── Input Card ── -->
+    <section class="card input-card">
+      <!-- Mode tabs -->
+      <div class="tabs" role="tablist">
+        <button class="tab active" data-tab="text" role="tab" aria-selected="true">
+          <span class="tab-icon">⌨️</span> Text / URL
+        </button>
+        <button class="tab" data-tab="image" role="tab" aria-selected="false">
+          <span class="tab-icon">🖼️</span> Image / Screenshot
+        </button>
+      </div>
+
+      <!-- Text / URL panel -->
+      <div class="tab-panel active" id="panel-text">
+        <div class="textarea-wrap">
+          <textarea
+            id="text-input"
+            placeholder="Paste a link, tweet URL, meme caption, person's name, viral sentence, Instagram post, TikTok link, or anything you want to research..."
+            rows="4"
+            spellcheck="false"
+          ></textarea>
+          <div class="type-badge" id="type-badge" style="display:none">
+            <span class="badge-dot"></span>
+            <span id="type-label">url</span>
+          </div>
+        </div>
+        <div class="input-hints">
+          <span class="hint">🔗 URL</span>
+          <span class="hint">🐦 Tweet / X</span>
+          <span class="hint">📸 Instagram</span>
+          <span class="hint">🎵 TikTok</span>
+          <span class="hint">👽 Reddit</span>
+          <span class="hint">📺 YouTube</span>
+          <span class="hint">💬 Caption</span>
+          <span class="hint">🎭 Meme name</span>
+        </div>
+      </div>
+
+      <!-- Image upload panel -->
+      <div class="tab-panel" id="panel-image" style="display:none">
+        <div class="drop-zone" id="drop-zone">
+          <div class="drop-idle" id="drop-idle">
+            <div class="drop-icon-wrap">
+              <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+                <rect x="4" y="4" width="40" height="40" rx="10" stroke="#4c1d95" stroke-width="2" stroke-dasharray="6 3"/>
+                <path d="M24 16 L24 32M16 24 L24 16 L32 24" stroke="#a78bfa" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <p class="drop-title">Drop image or screenshot here</p>
+            <p class="drop-sub">Supports JPG, PNG, GIF, WebP</p>
+            <button class="browse-btn" id="browse-btn">Browse files</button>
+            <input type="file" id="file-input" accept="image/*" style="display:none" />
+          </div>
+          <div class="drop-preview" id="drop-preview" style="display:none">
+            <img id="preview-img" src="" alt="Preview" />
+            <button class="remove-img-btn" id="remove-img">✕ Remove</button>
+          </div>
+        </div>
+        <div class="image-note">
+          <span>💡</span> Works great with screenshots of tweets, memes, viral posts, or any image you want to trace
+        </div>
+      </div>
+
+      <!-- Research button -->
+      <button class="research-btn" id="research-btn">
+        <span class="btn-spinner" id="btn-spinner" style="display:none"></span>
+        <span id="btn-label">Research It</span>
+        <span class="btn-arrow" id="btn-arrow">→</span>
+      </button>
+    </section>
+
+    <!-- ── Loading Section ── -->
+    <section class="card loading-card" id="loading-card" style="display:none">
+      <div class="loading-header">
+        <div class="pulse-dot"></div>
+        <span>Agent is researching the internet…</span>
+      </div>
+      <div class="steps-list" id="steps-list">
+        <div class="step" id="step-detect">
+          <span class="step-icon">🔍</span>
+          <span class="step-text">Detecting input type</span>
+          <span class="step-status"></span>
+        </div>
+        <div class="step" id="step-enrich">
+          <span class="step-icon">🧠</span>
+          <span class="step-text">Enriching &amp; extracting content</span>
+          <span class="step-status"></span>
+        </div>
+        <div class="step" id="step-web">
+          <span class="step-icon">🌐</span>
+          <span class="step-text">Searching Google &amp; web</span>
+          <span class="step-status"></span>
+        </div>
+        <div class="step" id="step-reddit">
+          <span class="step-icon">👽</span>
+          <span class="step-text">Searching Reddit &amp; news</span>
+          <span class="step-status"></span>
+        </div>
+        <div class="step" id="step-kym">
+          <span class="step-icon">🎭</span>
+          <span class="step-text">Checking meme databases</span>
+          <span class="step-status"></span>
+        </div>
+        <div class="step" id="step-synth">
+          <span class="step-icon">⚡</span>
+          <span class="step-text">Synthesizing intelligence with AI</span>
+          <span class="step-status"></span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Error Section ── -->
+    <section class="card error-card" id="error-card" style="display:none">
+      <div class="error-icon">⚠️</div>
+      <div class="error-body">
+        <strong>Research failed</strong>
+        <p id="error-msg"></p>
+      </div>
+      <button class="retry-btn" id="retry-btn">Try Again</button>
+    </section>
+
+    <!-- ── Results Section ── -->
+    <section id="results-section" style="display:none">
+      <!-- Meta row -->
+      <div class="results-meta" id="results-meta"></div>
+
+      <!-- Main result card -->
+      <div class="card result-card">
+        <!-- Name + verdict -->
+        <div class="result-header">
+          <div class="result-name-wrap">
+            <div class="result-label">Name</div>
+            <h2 class="result-name" id="r-name"></h2>
+          </div>
+          <div class="verdict-badge" id="r-verdict"></div>
+        </div>
+
+        <!-- Grid of fields -->
+        <div class="result-grid">
+          <div class="result-field">
+            <div class="field-label">
+              <span class="field-icon">🤔</span> What it is
+            </div>
+            <div class="field-value" id="r-what"></div>
+          </div>
+
+          <div class="result-field">
+            <div class="field-label">
+              <span class="field-icon">🏛️</span> Original source
+            </div>
+            <div class="field-value" id="r-source"></div>
+          </div>
+
+          <div class="result-field">
+            <div class="field-label">
+              <span class="field-icon">📅</span> Earliest post found
+            </div>
+            <div class="field-value" id="r-earliest"></div>
+          </div>
+
+          <div class="result-field full-width">
+            <div class="field-label">
+              <span class="field-icon">📖</span> Lore
+            </div>
+            <div class="field-value" id="r-lore"></div>
+          </div>
+
+          <div class="result-field full-width">
+            <div class="field-label">
+              <span class="field-icon">🚀</span> Why it went viral
+            </div>
+            <div class="field-value" id="r-viral"></div>
+          </div>
+
+          <div class="result-field">
+            <div class="field-label">
+              <span class="field-icon">🚩</span> Red flags
+            </div>
+            <div class="field-value" id="r-flags"></div>
+          </div>
+
+          <div class="result-field">
+            <div class="field-label">
+              <span class="field-icon">🎯</span> Verdict reasoning
+            </div>
+            <div class="field-value" id="r-verdict-reason"></div>
+          </div>
+        </div>
+
+        <!-- Best links -->
+        <div class="links-section">
+          <div class="field-label">
+            <span class="field-icon">🔗</span> Best links
+          </div>
+          <div class="links-list" id="r-links"></div>
+        </div>
+
+        <!-- Actions -->
+        <div class="result-actions">
+          <button class="action-btn copy-btn" id="copy-btn">
+            <span>📋</span> Copy Report
+          </button>
+          <button class="action-btn new-btn" id="new-search-btn">
+            <span>🔄</span> New Research
+          </button>
+          <div class="confidence-badge" id="confidence-badge"></div>
+        </div>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <p>Viral Lore Agent · Powered by GPT-4o &amp; web intelligence</p>
+    </footer>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
