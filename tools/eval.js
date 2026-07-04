@@ -224,7 +224,7 @@ function writeHtmlReport(summary) {
 }
 
 async function main() {
-  startServer(EVAL_PORT);
+  const server = startServer(EVAL_PORT);
   const cases = loadCases();
   const results = [];
   for (const testCase of cases) {
@@ -250,6 +250,7 @@ async function main() {
   writeHtmlReport(summary);
   console.log(`Saved ${REPORT_JSON}`);
   console.log(`Saved ${REPORT_HTML}`);
+  await new Promise((resolve) => server.close(resolve));
 }
 
 main().catch((error) => {

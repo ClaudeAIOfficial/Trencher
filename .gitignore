@@ -4,3 +4,4 @@ npm-debug.log*
 .env
 data/feedback.json
 logs/research-runs.jsonl
+*.traineddata

@@ -1,0 +1,73 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Viral Lore Agent Eval Report</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 24px; background: #f7f9fc; }
+    table { border-collapse: collapse; width: 100%; background: #fff; }
+    th, td { border: 1px solid #ddd; padding: 8px; font-size: 14px; vertical-align: top; }
+    th { background: #1f4bd6; color: #fff; text-align: left; }
+    .summary { margin-bottom: 16px; }
+  </style>
+</head>
+<body>
+  <h1>Viral Lore Agent Evaluation Report</h1>
+  <div class="summary">
+    <p>Total: 4</p>
+    <p>Passed: 0</p>
+    <p>Partial: 3</p>
+    <p>Failed: 1</p>
+    <p>Average Score: 0.531</p>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>Case</th><th>Status</th><th>Response Time</th><th>Agent Answer</th><th>Expected</th><th>Confidence</th><th>Source Quality</th><th>Missing Pieces</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+  <td>distracted-boyfriend-text</td>
+  <td>failed</td>
+  <td>590ms</td>
+  <td>The Distracted Boyfriend Meme’s Perverse Pleasure in 2017 - The New Yorker</td>
+  <td>Distracted Boyfriend</td>
+  <td>62</td>
+  <td>okay</td>
+  <td>original source mismatch, platform mismatch, weak lore keyword coverage</td>
+</tr>
+<tr>
+  <td>harambe-text</td>
+  <td>partial</td>
+  <td>872ms</td>
+  <td>“Dicks Out for Harambe”: How 2 Average Guys Started the Year’s Most Controversial Meme - Cosmopol...</td>
+  <td>Harambe</td>
+  <td>69</td>
+  <td>okay</td>
+  <td>platform mismatch, weak lore keyword coverage</td>
+</tr>
+<tr>
+  <td>sample-image-upload</td>
+  <td>partial</td>
+  <td>1137ms</td>
+  <td>Java file upload by example with Servlets &amp; JSPs - TheServerSide</td>
+  <td>Sample</td>
+  <td>58</td>
+  <td>okay</td>
+  <td>name mismatch</td>
+</tr>
+<tr>
+  <td>side-eye-chloe-url</td>
+  <td>partial</td>
+  <td>1487ms</td>
+  <td>Side Eyeing Chloe | Know Your Meme</td>
+  <td>Side-Eyeing Chloe</td>
+  <td>78</td>
+  <td>strong</td>
+  <td>name mismatch, platform mismatch</td>
+</tr>
+    </tbody>
+  </table>
+</body>
+</html>
