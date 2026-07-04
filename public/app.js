@@ -7,6 +7,8 @@ const inputTypeEl = document.getElementById("input-type");
 const coverageList = document.getElementById("coverage-list");
 const reverseLinks = document.getElementById("reverse-links");
 const postExtract = document.getElementById("post-extract");
+const ocrText = document.getElementById("ocr-text");
+const bestLinksList = document.getElementById("best-links-list");
 const submitBtn = document.getElementById("submit-btn");
 
 function setStatus(message, isError = false) {
@@ -49,14 +51,26 @@ function renderResult(payload) {
     reverseLinks.appendChild(makeListItem("No reverse image links for this input."));
   }
 
+  ocrText.textContent = result.ocr?.text || "No OCR text extracted.";
+
+  bestLinksList.innerHTML = "";
+  (result.bestLinks || []).forEach((link) => {
+    const details = `${link.platform || "web"} | ${link.date || "unknown date"} | confidence ${link.confidence}/100 | ${link.whyItMatters}`;
+    bestLinksList.appendChild(makeListItem(`${link.title} — ${details}`, link.url));
+  });
+  if (!bestLinksList.children.length) {
+    bestLinksList.appendChild(makeListItem("No ranked links available."));
+  }
+
   const extracted = result.extractedPost;
   if (extracted) {
     postExtract.innerHTML = `
+      <p><strong>Platform:</strong> ${extracted.platform || "N/A"}</p>
       <p><strong>Title:</strong> ${extracted.title || "N/A"}</p>
       <p><strong>Author:</strong> ${extracted.author || "N/A"}</p>
       <p><strong>Date:</strong> ${extracted.publishedAt || "N/A"}</p>
       <p><strong>URL:</strong> <a href="${extracted.url}" target="_blank" rel="noopener noreferrer">${extracted.url}</a></p>
-      <p><strong>Text:</strong> ${extracted.snippet || "N/A"}</p>
+      <p><strong>Text:</strong> ${extracted.description || extracted.snippet || "N/A"}</p>
     `;
   } else {
     postExtract.innerHTML = "<p>No direct post extraction was performed for this input.</p>";
