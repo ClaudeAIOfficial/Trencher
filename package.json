@@ -1,0 +1,10 @@
+{
+  "name": "viral-lore-agent",
+  "version": "1.0.0",
+  "description": "A fast web research assistant for finding the origin, lore, and viral context of images, posts, phrases, and trends.",
+  "private": true,
+  "scripts": {
+    "start": "python3 -m http.server 5173",
+    "test": "node --check app.js"
+  }
+}

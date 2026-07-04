@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Viral Lore Agent</title>
+    <meta
+      name="description"
+      content="Research the origin, lore, and viral context of images, posts, phrases, names, memes, events, and trends."
+    >
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <main class="shell">
+      <section class="hero">
+        <div>
+          <p class="eyebrow">Fast internet context finder</p>
+          <h1>Viral Lore Agent</h1>
+          <p class="hero-copy">
+            Drop in a clue: image, screenshot, post URL, caption, sentence, name,
+            meme, animal, event, or trend. The agent detects the input and builds
+            a focused research brief for finding the original source and viral lore.
+          </p>
+        </div>
+        <div class="hero-card">
+          <span class="pulse"></span>
+          <strong>Research modes</strong>
+          <span>Google, News, Reddit, X, Instagram, Facebook, TikTok, reverse image search</span>
+        </div>
+      </section>
+
+      <section class="workspace">
+        <form id="lore-form" class="panel input-panel">
+          <div class="panel-heading">
+            <h2>Give me any clue</h2>
+            <button type="button" id="clear-button" class="ghost-button">Clear</button>
+          </div>
+
+          <label class="dropzone" id="dropzone">
+            <input id="file-input" type="file" accept="image/*">
+            <span class="drop-icon">+</span>
+            <strong>Upload image or screenshot</strong>
+            <small>PNG, JPG, GIF, WebP, or any browser-supported image</small>
+          </label>
+
+          <div id="image-preview" class="image-preview hidden" aria-live="polite"></div>
+
+          <label class="text-label" for="clue-input">
+            Paste a post URL, social link, sentence, caption, name, meme, event, or trend
+          </label>
+          <textarea
+            id="clue-input"
+            rows="7"
+            placeholder="Example: https://www.tiktok.com/@creator/video/123... or 'I was today years old when...'"
+          ></textarea>
+
+          <div class="actions">
+            <button type="submit" class="primary-button">Research this clue</button>
+            <button type="button" id="open-all-button" class="secondary-button" disabled>Open best search tabs</button>
+          </div>
+        </form>
+
+        <section class="panel report-panel" aria-live="polite">
+          <div class="panel-heading">
+            <h2>Research brief</h2>
+            <span id="detected-badge" class="badge">Waiting for clue</span>
+          </div>
+
+          <div id="report-empty" class="empty-state">
+            <p>
+              Add a clue and the agent will classify it, generate source-hunting searches,
+              surface red flags, and format the answer as a viral lore brief.
+            </p>
+          </div>
+
+          <article id="report" class="report hidden"></article>
+        </section>
+      </section>
+
+      <section class="panel links-panel">
+        <div class="panel-heading">
+          <h2>Best links</h2>
+          <span class="muted">Open sources in new tabs, then paste confirmed evidence back into your notes.</span>
+        </div>
+        <div id="links-grid" class="links-grid"></div>
+      </section>
+
+      <section class="panel notes-panel">
+        <div class="panel-heading">
+          <h2>Evidence notes</h2>
+          <button type="button" id="copy-report-button" class="ghost-button" disabled>Copy report</button>
+        </div>
+        <textarea
+          id="evidence-notes"
+          rows="6"
+          placeholder="Paste candidate original posts, dates, author handles, comment clues, repost chains, or contradictions here."
+        ></textarea>
+      </section>
+    </main>
+
+    <script src="app.js" defer></script>
+  </body>
+</html>
