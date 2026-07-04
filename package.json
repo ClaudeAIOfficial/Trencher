@@ -1,0 +1,27 @@
+{
+  "name": "workspace",
+  "version": "1.0.0",
+  "description": "Viral Lore Agent web app",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "test": "node -e \"console.log('No automated tests configured')\""
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ClaudeAIOfficial/Trencher.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/ClaudeAIOfficial/Trencher/issues"
+  },
+  "homepage": "https://github.com/ClaudeAIOfficial/Trencher#readme",
+  "dependencies": {
+    "cheerio": "^1.2.0",
+    "express": "^5.2.1",
+    "multer": "^2.2.0"
+  }
+}

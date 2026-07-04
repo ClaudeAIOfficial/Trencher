@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Viral Lore Agent</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="container">
+      <h1>Viral Lore Agent</h1>
+      <p class="subtitle">
+        Drop any clue (image, link, sentence, caption, or name) and get origin + lore + viral context.
+      </p>
+
+      <section class="card">
+        <form id="research-form">
+          <label for="input">Text / link / clue</label>
+          <textarea
+            id="input"
+            name="input"
+            rows="4"
+            placeholder="Paste a URL, sentence, caption, trend name, person, animal, meme, or event..."
+          ></textarea>
+
+          <label for="file">Image or screenshot upload (optional)</label>
+          <input id="file" name="file" type="file" accept="image/*" />
+
+          <button type="submit" id="submit-btn">Research now</button>
+        </form>
+      </section>
+
+      <section class="card hidden" id="status-card">
+        <h2>Status</h2>
+        <p id="status-text"></p>
+      </section>
+
+      <section class="card hidden" id="result-card">
+        <h2>Output</h2>
+        <pre id="formatted-output"></pre>
+
+        <div class="grid">
+          <div>
+            <h3>Detected input type</h3>
+            <p id="input-type"></p>
+          </div>
+          <div>
+            <h3>Coverage</h3>
+            <ul id="coverage-list"></ul>
+          </div>
+        </div>
+
+        <div class="grid">
+          <div>
+            <h3>Reverse image links</h3>
+            <ul id="reverse-links"></ul>
+          </div>
+          <div>
+            <h3>Extracted post snapshot</h3>
+            <div id="post-extract"></div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script src="/app.js"></script>
+  </body>
+</html>
