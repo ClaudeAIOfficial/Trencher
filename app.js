@@ -264,7 +264,7 @@ function buildResearchLinks(input) {
   if (input.kind === "url" && input.urls[0]) {
     links.push(
       link("URL mentions", googleSearch(`"${input.urls[0]}"`), "Find pages or posts that quote the same URL."),
-      link("Archive search", `https://webcache.googleusercontent.com/search?q=${encode(input.urls[0])}`, "Look for cached or archived copies when posts disappear.")
+      link("Internet Archive", `https://web.archive.org/web/*/${input.urls[0]}`, "Look for archived copies when posts disappear or change.")
     );
   }
 
