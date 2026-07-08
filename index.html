@@ -1,0 +1,903 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HOODCITY — Sherwood's Trading Post</title>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Cinzel+Decorative:wght@400;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#050302;font-family:'Cinzel',serif}
+canvas{display:block}
+
+/* ── LOADING ── */
+#loading{position:fixed;inset:0;background:radial-gradient(ellipse at center,#1a1205 0%,#050302 70%);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;transition:opacity 1s ease}
+.logo{font-family:'Cinzel Decorative',cursive;font-size:clamp(3.2rem,11vw,7.5rem);color:#c8a84b;letter-spacing:.15em;text-shadow:0 0 25px rgba(200,168,75,.65),0 0 70px rgba(200,168,75,.3),0 0 120px rgba(200,168,75,.1);margin-bottom:.4rem}
+.tagline{font-size:clamp(.55rem,1.8vw,.85rem);color:#7a6840;letter-spacing:.5em;text-transform:uppercase;margin-bottom:2.8rem}
+.load-bar-wrap{width:min(380px,78vw);height:3px;background:#141006;border-radius:2px;overflow:hidden;margin-bottom:1.2rem}
+#load-bar{height:100%;width:0%;background:linear-gradient(90deg,#7a5514,#c8a84b,#7a5514);transition:width .4s ease}
+#load-status{font-size:.65rem;color:#5a4828;letter-spacing:.25em;min-height:1.2rem;margin-bottom:2.8rem}
+#enter-btn{display:none;padding:.85rem 3.2rem;background:transparent;border:2px solid #c8a84b;color:#c8a84b;font-family:'Cinzel',serif;font-size:.82rem;letter-spacing:.3em;cursor:pointer;text-transform:uppercase;transition:all .3s;border-radius:2px}
+#enter-btn:hover{background:#c8a84b;color:#050302;box-shadow:0 0 35px rgba(200,168,75,.45)}
+.load-hint{margin-top:1.5rem;font-size:.58rem;color:#3a2818;letter-spacing:.2em}
+
+/* ── HUD ── */
+#hud{position:fixed;inset:0;pointer-events:none;display:none}
+#hud.on{display:block}
+.crosshair{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:18px;height:18px}
+.crosshair::before,.crosshair::after{content:'';position:absolute;background:rgba(200,168,75,.85)}
+.crosshair::before{left:0;top:50%;transform:translateY(-50%);width:100%;height:1.5px}
+.crosshair::after{top:0;left:50%;transform:translateX(-50%);width:1.5px;height:100%}
+.hud-bl{position:absolute;bottom:26px;left:26px;display:flex;flex-direction:column;gap:10px}
+.stat-lbl{font-size:.52rem;color:#6a5830;letter-spacing:.3em;margin-bottom:2px}
+.bar{width:176px;height:8px;background:rgba(0,0,0,.55);border:1px solid rgba(200,168,75,.25);border-radius:4px;overflow:hidden}
+#hp-fill{height:100%;width:100%;background:linear-gradient(90deg,#7a0808,#d42828 60%,#f04040);transition:width .5s;border-radius:4px}
+.hud-gold{font-size:.9rem;color:#c8a84b;text-shadow:0 0 12px rgba(200,168,75,.4)}
+#compass{position:absolute;top:18px;left:50%;transform:translateX(-50%);font-size:.68rem;letter-spacing:.55em;color:#c8a84b;background:rgba(3,2,0,.65);padding:5px 18px;border:1px solid rgba(200,168,75,.3);border-radius:20px;backdrop-filter:blur(6px)}
+#hint{position:absolute;bottom:96px;left:50%;transform:translateX(-50%);font-size:.74rem;color:#c8a84b;background:rgba(3,2,0,.8);padding:8px 22px;border:1px solid rgba(200,168,75,.4);border-radius:3px;letter-spacing:.18em;opacity:0;transition:opacity .35s;white-space:nowrap;pointer-events:none}
+#hint.show{opacity:1}
+.ctrl-hint{position:absolute;top:18px;right:18px;font-size:.58rem;color:#4a3a20;line-height:2;letter-spacing:.1em;text-align:right}
+
+/* ── PAUSE ── */
+#pause{position:fixed;inset:0;background:rgba(0,0,0,.65);display:none;align-items:center;justify-content:center;flex-direction:column;gap:14px;z-index:300;backdrop-filter:blur(4px)}
+#pause.on{display:flex}
+#pause h1{font-family:'Cinzel Decorative',cursive;font-size:3.2rem;color:#c8a84b;text-shadow:0 0 35px rgba(200,168,75,.5)}
+#pause p{font-size:.78rem;color:#8a7848;letter-spacing:.35em}
+
+/* ── SHOP UI ── */
+#shop{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.8);z-index:500;backdrop-filter:blur(5px);pointer-events:all}
+#shop.on{display:flex}
+.sp{background:linear-gradient(155deg,#0e0905,#1c1408,#0e0905);border:1px solid rgba(200,168,75,.55);box-shadow:0 0 50px rgba(200,168,75,.18),inset 0 1px 0 rgba(200,168,75,.12);border-radius:4px;width:min(800px,96vw);padding:1.8rem 2rem;max-height:92vh;overflow-y:auto}
+.sp::-webkit-scrollbar{width:4px}
+.sp::-webkit-scrollbar-track{background:#0e0905}
+.sp::-webkit-scrollbar-thumb{background:#6a5828;border-radius:2px}
+.sp-head{text-align:center;padding-bottom:1.1rem;margin-bottom:1.4rem;border-bottom:1px solid rgba(200,168,75,.2)}
+.sp-head h2{font-family:'Cinzel Decorative',cursive;font-size:clamp(1.1rem,3vw,1.65rem);color:#c8a84b;margin-bottom:5px}
+.sp-head .npc{font-size:.7rem;color:#7a6840;letter-spacing:.28em}
+.sp-body{display:grid;grid-template-columns:1fr 1fr;gap:1.8rem}
+@media(max-width:580px){.sp-body{grid-template-columns:1fr}}
+.sp-col h3{font-size:.6rem;color:#8a7848;letter-spacing:.38em;margin-bottom:.9rem;padding-bottom:6px;border-bottom:1px solid rgba(200,168,75,.14)}
+.ig{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.ic{background:rgba(0,0,0,.38);border:1px solid rgba(200,168,75,.14);border-radius:3px;padding:11px 9px;text-align:center;transition:border-color .2s,background .2s}
+.ic:hover{border-color:rgba(200,168,75,.5);background:rgba(200,168,75,.05)}
+.ic .ii{font-size:2rem;margin-bottom:4px;line-height:1}
+.ic .in{font-size:.62rem;color:#c8a84b;letter-spacing:.08em;margin-bottom:2px}
+.ic .iq{font-size:.58rem;color:#5a4828;margin-bottom:7px}
+.ic .ip{font-size:.62rem;color:#f0d060;margin-bottom:7px}
+.ib{width:100%;padding:5px 0;background:transparent;border:1px solid #7a6030;color:#c8a84b;font-family:'Cinzel',serif;font-size:.58rem;letter-spacing:.1em;cursor:pointer;transition:all .2s;border-radius:2px}
+.ib:hover:not(:disabled){background:rgba(200,168,75,.15);border-color:#c8a84b}
+.ib:disabled{opacity:.32;cursor:not-allowed}
+.sp-foot{display:flex;justify-content:space-between;align-items:center;margin-top:1.4rem;padding-top:.9rem;border-top:1px solid rgba(200,168,75,.18)}
+.sp-gold{font-size:.88rem;color:#f0d060}
+#close-btn{padding:7px 22px;background:transparent;border:1px solid #7a3020;color:#c06040;font-family:'Cinzel',serif;font-size:.68rem;letter-spacing:.15em;cursor:pointer;transition:all .2s;border-radius:2px}
+#close-btn:hover{background:#7a3020;color:#fff}
+
+/* ── TOASTS ── */
+#toasts{position:fixed;top:68px;right:16px;display:flex;flex-direction:column;gap:8px;z-index:600;pointer-events:none}
+.toast{background:rgba(4,2,0,.92);border:1px solid rgba(200,168,75,.3);border-left:3px solid #c8a84b;color:#c8a84b;padding:9px 14px;font-size:.72rem;letter-spacing:.08em;border-radius:2px;animation:tIn .3s ease,tOut .5s 2.6s ease forwards;max-width:270px}
+.toast.ok{border-left-color:#30c860;color:#50e080;border-color:rgba(30,200,60,.3)}
+.toast.err{border-left-color:#c83030;color:#ff7050;border-color:rgba(200,40,30,.3)}
+@keyframes tIn{from{transform:translateX(110%);opacity:0}to{transform:translateX(0);opacity:1}}
+@keyframes tOut{from{opacity:1}to{opacity:0;transform:translateX(20px)}}
+
+/* ── MINIMAP ── */
+#minimap{position:absolute;bottom:26px;right:26px;width:110px;height:110px;background:rgba(0,0,0,.6);border:1px solid rgba(200,168,75,.3);border-radius:50%;overflow:hidden}
+#minimap canvas{width:110px;height:110px}
+</style>
+</head>
+<body>
+
+<!-- LOADING -->
+<div id="loading">
+  <div class="logo">HOODCITY</div>
+  <div class="tagline">Sherwood's Finest Trading Post</div>
+  <div class="load-bar-wrap"><div id="load-bar"></div></div>
+  <div id="load-status">Gathering the Merry Men…</div>
+  <button id="enter-btn">⚔&nbsp; Enter the City &nbsp;⚔</button>
+  <div class="load-hint">WASD to move · Mouse to look · E to trade</div>
+</div>
+
+<!-- HUD -->
+<div id="hud">
+  <div class="crosshair"></div>
+  <div class="hud-bl">
+    <div><div class="stat-lbl">VITALITY</div><div class="bar"><div id="hp-fill"></div></div></div>
+    <div class="hud-gold">💰 <span id="g-val">100</span> Gold</div>
+  </div>
+  <div id="compass">N</div>
+  <div id="hint"></div>
+  <div class="ctrl-hint">W A S D — MOVE<br>MOUSE — LOOK<br>E — TRADE<br>ESC — PAUSE</div>
+  <div id="minimap"><canvas id="mm" width="110" height="110"></canvas></div>
+</div>
+
+<!-- PAUSE -->
+<div id="pause"><h1>PAUSED</h1><p>CLICK TO RESUME</p></div>
+
+<!-- SHOP -->
+<div id="shop">
+  <div class="sp">
+    <div class="sp-head"><h2 id="s-name"></h2><div class="npc" id="s-npc"></div></div>
+    <div class="sp-body">
+      <div class="sp-col"><h3>WARES FOR SALE</h3><div class="ig" id="s-wares"></div></div>
+      <div class="sp-col"><h3>YOUR SATCHEL</h3><div class="ig" id="s-inv"></div></div>
+    </div>
+    <div class="sp-foot">
+      <div class="sp-gold">💰 <span id="s-gold">100</span> Gold</div>
+      <button id="close-btn">LEAVE SHOP</button>
+    </div>
+  </div>
+</div>
+
+<div id="toasts"></div>
+
+<script type="importmap">
+{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
+
+// ── DOM refs ──
+const loadingEl=document.getElementById('loading'),loadBar=document.getElementById('load-bar'),loadStatus=document.getElementById('load-status'),enterBtn=document.getElementById('enter-btn');
+const hudEl=document.getElementById('hud'),gVal=document.getElementById('g-val'),hpFill=document.getElementById('hp-fill'),hintEl=document.getElementById('hint'),compassEl=document.getElementById('compass');
+const pauseEl=document.getElementById('pause'),shopEl=document.getElementById('shop');
+const sName=document.getElementById('s-name'),sNpc=document.getElementById('s-npc'),sWares=document.getElementById('s-wares'),sInv=document.getElementById('s-inv'),sGold=document.getElementById('s-gold');
+const toastsEl=document.getElementById('toasts');
+const mmCanvas=document.getElementById('mm'),mmCtx=mmCanvas.getContext('2d');
+
+function setLoad(p,msg){loadBar.style.width=p+'%';if(msg)loadStatus.textContent=msg;}
+
+// ── SCENE ──
+setLoad(5,'Building the world…');
+const scene=new THREE.Scene();
+scene.fog=new THREE.Fog(0xC8B890,40,200);
+
+const renderer=new THREE.WebGLRenderer({antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.setSize(innerWidth,innerHeight);
+renderer.shadowMap.enabled=true;
+renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+renderer.toneMapping=THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure=1.05;
+document.body.appendChild(renderer.domElement);
+
+const camera=new THREE.PerspectiveCamera(72,innerWidth/innerHeight,.1,500);
+camera.position.set(0,1.75,8);
+scene.add(camera);
+
+const controls=new PointerLockControls(camera,renderer.domElement);
+window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);});
+
+// ── LIGHTING ──
+setLoad(10,'Lighting the torches…');
+scene.add(new THREE.HemisphereLight(0xA0C8E8,0x6B4820,.55));
+const sun=new THREE.DirectionalLight(0xFFF2C8,1.9);
+sun.position.set(55,110,45);sun.castShadow=true;
+sun.shadow.mapSize.set(2048,2048);
+Object.assign(sun.shadow.camera,{near:1,far:260,left:-75,right:75,top:75,bottom:-75});
+sun.shadow.bias=-.001;scene.add(sun);
+scene.add(Object.assign(new THREE.DirectionalLight(0xC0A878,.45),{position:new THREE.Vector3(-35,35,-45)}));
+scene.add(new THREE.AmbientLight(0x8090A0,.3));
+
+// ── SKY DOME ──
+(()=>{
+  const c=document.createElement('canvas');c.width=2;c.height=512;
+  const x=c.getContext('2d'),g=x.createLinearGradient(0,0,0,512);
+  g.addColorStop(0,'#3870BC');g.addColorStop(.45,'#80C0DE');g.addColorStop(.75,'#D0B888');g.addColorStop(1,'#B89868');
+  x.fillStyle=g;x.fillRect(0,0,2,512);
+  const mat=new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(c),side:THREE.BackSide});
+  scene.add(new THREE.Mesh(new THREE.SphereGeometry(450,16,16),mat));
+})();
+
+// ── TEXTURES ──
+setLoad(18,'Carving the stones…');
+function mk(fn,ru,rv){const t=new THREE.CanvasTexture(fn());t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(ru||2,rv||2);return t;}
+
+const TX={
+  brick:mk(()=>{
+    const c=document.createElement('canvas');c.width=c.height=256;const x=c.getContext('2d');
+    x.fillStyle='#9a7060';x.fillRect(0,0,256,256);
+    const bW=44,bH=20;
+    for(let r=0;r<14;r++)for(let ci=-1;ci<7;ci++){
+      const ox=(r%2)*(bW/2),px=ci*bW+ox,py=r*bH;
+      const rv2=138+(Math.random()*48|0),gv=68+(Math.random()*32|0),bv=42+(Math.random()*28|0);
+      x.fillStyle=`rgb(${rv2},${gv},${bv})`;x.fillRect(px+2,py+2,bW-4,bH-4);
+      x.fillStyle='rgba(0,0,0,.13)';x.fillRect(px+bW-5,py+2,3,bH-4);x.fillRect(px+2,py+bH-4,bW-4,2);
+      x.fillStyle='rgba(255,255,255,.08)';x.fillRect(px+2,py+2,bW-4,2);x.fillRect(px+2,py+2,2,bH-4);
+    }
+    return c;
+  },3,3),
+  stone:mk(()=>{
+    const c=document.createElement('canvas');c.width=c.height=256;const x=c.getContext('2d');
+    x.fillStyle='#767672';x.fillRect(0,0,256,256);
+    const ys=[0,26,50,72,98,122,146,170,196,222,248];
+    ys.forEach((y,ri)=>{
+      let cx=(ri%2)*-18;
+      while(cx<280){const w=28+(Math.random()*54|0),h=ys[ri+1]?ys[ri+1]-y-3:22,g=92+(Math.random()*72|0);
+        x.fillStyle=`rgb(${g},${g-2},${g-7})`;x.fillRect(cx+2,y+2,w-4,Math.min(h-1,23));
+        x.strokeStyle='rgba(0,0,0,.2)';x.lineWidth=1;x.strokeRect(cx+2,y+2,w-4,Math.min(h-1,23));cx+=w+2;}
+    });return c;
+  },2,2),
+  wood:mk(()=>{
+    const c=document.createElement('canvas');c.width=c.height=256;const x=c.getContext('2d');
+    x.fillStyle='#7a5530';x.fillRect(0,0,256,256);
+    for(let i=0;i<280;i++){const px=Math.random()*256,py=Math.random()*256;x.beginPath();x.moveTo(px,py);x.lineTo(px+(Math.random()-.5)*28,py+12+Math.random()*10);x.strokeStyle=`rgba(0,0,0,${.05+Math.random()*.18})`;x.lineWidth=.5+Math.random()*1.5;x.stroke();}
+    for(let y=0;y<256;y+=28){x.fillStyle='rgba(0,0,0,.22)';x.fillRect(0,y,256,2);}return c;
+  },2,4),
+  plaster:mk(()=>{
+    const c=document.createElement('canvas');c.width=c.height=256;const x=c.getContext('2d');
+    x.fillStyle='#E4D8C0';x.fillRect(0,0,256,256);
+    for(let i=0;i<700;i++){x.fillStyle=`rgba(0,0,0,${Math.random()*.04})`;x.fillRect(Math.random()*256,Math.random()*256,1+Math.random()*4,1+Math.random()*4);}
+    return c;
+  },3,3),
+  thatch:mk(()=>{
+    const c=document.createElement('canvas');c.width=c.height=256;const x=c.getContext('2d');
+    x.fillStyle='#9B8060';x.fillRect(0,0,256,256);
+    for(let i=0;i<420;i++){const px=Math.random()*256,py=Math.random()*256,g=78+(Math.random()*82|0);x.beginPath();x.moveTo(px,py);x.lineTo(px+(Math.random()-.5)*18,py+13+Math.random()*10);x.strokeStyle=`rgb(${g+28},${g+12},${g-14})`;x.lineWidth=.8+Math.random()*2.2;x.stroke();}
+    return c;
+  },4,4),
+  slate:mk(()=>{
+    const c=document.createElement('canvas');c.width=c.height=256;const x=c.getContext('2d');
+    x.fillStyle='#282630';x.fillRect(0,0,256,256);
+    for(let r=0;r<16;r++){const off=(r%2)*40;for(let ci=-1;ci<4;ci++){const px=ci*80+off,py=r*16,g=38+(Math.random()*32|0);x.fillStyle=`rgb(${g},${g+2},${g+9})`;x.fillRect(px+1,py+1,78,14);x.fillStyle='rgba(255,255,255,.06)';x.fillRect(px+1,py+1,78,2);}}
+    return c;
+  },5,5),
+  cobble:mk(()=>{
+    const c=document.createElement('canvas');c.width=c.height=512;const x=c.getContext('2d');
+    x.fillStyle='#464440';x.fillRect(0,0,512,512);
+    for(let r=0;r<11;r++)for(let ci=0;ci<11;ci++){
+      const jx=(Math.random()-.5)*8,jy=(Math.random()-.5)*8,px=ci*48+(r%2)*24+jx,py=r*46+jy;
+      const w=30+(Math.random()*14|0),h=28+(Math.random()*12|0),g=88+(Math.random()*72|0);
+      x.fillStyle=`rgb(${g},${g-1},${g-5})`;x.fillRect(px,py,w,h);
+      x.fillStyle='rgba(255,255,255,.1)';x.fillRect(px,py,w,2);x.fillRect(px,py,2,h);
+      x.fillStyle='rgba(0,0,0,.22)';x.fillRect(px+w-2,py,2,h);x.fillRect(px,py+h-2,w,2);
+    }
+    return c;
+  },10,10),
+  grass:mk(()=>{
+    const c=document.createElement('canvas');c.width=c.height=256;const x=c.getContext('2d');
+    x.fillStyle='#386228';x.fillRect(0,0,256,256);
+    for(let i=0;i<900;i++){const px=Math.random()*256,py=Math.random()*256,g=48+(Math.random()*62|0);x.strokeStyle=`rgb(${g-8},${g+42},${g-14})`;x.lineWidth=.8;x.beginPath();x.moveTo(px,py);x.lineTo(px+(Math.random()-.5)*4,py-5-Math.random()*7);x.stroke();}
+    return c;
+  },25,25),
+  darkwood:mk(()=>{
+    const c=document.createElement('canvas');c.width=c.height=64;const x=c.getContext('2d');
+    x.fillStyle='#1C0E06';x.fillRect(0,0,64,64);
+    for(let i=0;i<20;i++){x.fillStyle=`rgba(70,35,8,${Math.random()*.3})`;x.fillRect(Math.random()*64,Math.random()*64,Math.random()*10,Math.random()*8);}
+    return c;
+  },2,4),
+};
+
+// ── MATERIALS ──
+const M={
+  brick:  new THREE.MeshLambertMaterial({map:TX.brick}),
+  stone:  new THREE.MeshLambertMaterial({map:TX.stone}),
+  wood:   new THREE.MeshLambertMaterial({map:TX.wood}),
+  plaster:new THREE.MeshLambertMaterial({map:TX.plaster}),
+  thatch: new THREE.MeshLambertMaterial({map:TX.thatch}),
+  slate:  new THREE.MeshLambertMaterial({map:TX.slate}),
+  cobble: new THREE.MeshLambertMaterial({map:TX.cobble}),
+  grass:  new THREE.MeshLambertMaterial({map:TX.grass}),
+  beam:   new THREE.MeshLambertMaterial({map:TX.darkwood}),
+  win:    new THREE.MeshLambertMaterial({color:0x8AB8D5,emissive:0x335588,emissiveIntensity:.45}),
+  winW:   new THREE.MeshLambertMaterial({color:0xFFE080,emissive:0xFF9900,emissiveIntensity:1.1}),
+  door:   new THREE.MeshLambertMaterial({color:0x3a2012}),
+  sign:   new THREE.MeshLambertMaterial({color:0xD4AA48}),
+  iron:   new THREE.MeshLambertMaterial({color:0x607060}),
+  water:  new THREE.MeshLambertMaterial({color:0x4488CC,emissive:0x224488,emissiveIntensity:.45,transparent:true,opacity:.78}),
+  torch:  new THREE.MeshLambertMaterial({color:0xFFAA30,emissive:0xFF7700,emissiveIntensity:1.3}),
+  skin:   new THREE.MeshLambertMaterial({color:0xD4A070}),
+  hay:    new THREE.MeshLambertMaterial({color:0xD4B838}),
+  grn:    new THREE.MeshLambertMaterial({color:0x2E7D32}),
+  brn:    new THREE.MeshLambertMaterial({color:0x5D4037}),
+  red:    new THREE.MeshLambertMaterial({color:0xB71C1C}),
+  prp:    new THREE.MeshLambertMaterial({color:0x6A1B9A}),
+  gry:    new THREE.MeshLambertMaterial({color:0x455A64}),
+  nvy:    new THREE.MeshLambertMaterial({color:0x1A237E}),
+  awR:    new THREE.MeshLambertMaterial({color:0xC62828}),
+  awB:    new THREE.MeshLambertMaterial({color:0x1A5A8A}),
+  awG:    new THREE.MeshLambertMaterial({color:0x2A6A2A}),
+};
+
+// ── COLLISION ──
+const cols=[];
+function addCol(cx,cz,w,d,pad=.35){cols.push({x0:cx-w/2-pad,x1:cx+w/2+pad,z0:cz-d/2-pad,z1:cz+d/2+pad});}
+function hitting(x,z,r=.5){for(const c of cols)if(x+r>c.x0&&x-r<c.x1&&z+r>c.z0&&z-r<c.z1)return true;return false;}
+
+// ── HELPERS ──
+function bx(w,h,d,mat,x,y,z,rx=0,ry=0){
+  const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat);
+  m.position.set(x,y,z);m.rotation.set(rx,ry,0);m.castShadow=true;m.receiveShadow=true;scene.add(m);return m;
+}
+function roof(w,h,d,mat,x,y,z,ry=0){
+  const sh=new THREE.Shape();sh.moveTo(-w/2,0);sh.lineTo(w/2,0);sh.lineTo(0,h);sh.closePath();
+  const geo=new THREE.ExtrudeGeometry(sh,{depth:d,bevelEnabled:false});
+  const m=new THREE.Mesh(geo,mat);m.position.set(x,y,z-d/2);m.rotation.y=ry;m.castShadow=true;scene.add(m);return m;
+}
+
+// ── WORLD ──
+setLoad(28,'Laying the cobblestones…');
+
+// Ground
+bx(320,.2,320,M.grass,0,-.1,0);
+// Town square
+bx(34,.22,34,M.cobble,0,.02,0);
+// Roads
+bx(8,.22,90,M.cobble,0,.02,0);
+bx(90,.22,8,M.cobble,0,.02,0);
+
+// ── FOUNTAIN ──
+(()=>{
+  const fg=new THREE.Mesh(new THREE.CylinderGeometry(4.2,4.8,.85,18),M.stone);fg.position.set(0,.42,0);fg.castShadow=fg.receiveShadow=true;scene.add(fg);
+  const fw=new THREE.Mesh(new THREE.CylinderGeometry(3.6,3.6,.65,18,1,true),M.stone);fw.position.set(0,.5,0);scene.add(fw);
+  const fwt=new THREE.Mesh(new THREE.CylinderGeometry(3.3,3.3,.08,18),M.water);fwt.position.set(0,.6,0);scene.add(fwt);
+  const fp=new THREE.Mesh(new THREE.CylinderGeometry(.28,.38,2.6,8),M.stone);fp.position.set(0,1.25,0);fp.castShadow=true;scene.add(fp);
+  const fpt=new THREE.Mesh(new THREE.SphereGeometry(.46,8,8),M.stone);fpt.position.set(0,2.62,0);fpt.castShadow=true;scene.add(fpt);
+  addCol(0,0,10,10);
+})();
+
+// ── LAMP POSTS ──
+function lamp(x,z){
+  const g=new THREE.Group();
+  const p=new THREE.Mesh(new THREE.CylinderGeometry(.05,.08,4.8,6),M.iron);p.position.y=2.4;p.castShadow=true;g.add(p);
+  const a=new THREE.Mesh(new THREE.CylinderGeometry(.04,.04,.9,6),M.iron);a.position.set(.45,4.55,0);a.rotation.z=Math.PI/2;g.add(a);
+  const ln=new THREE.Mesh(new THREE.BoxGeometry(.32,.38,.32),M.iron);ln.position.set(.9,4.55,0);g.add(ln);
+  const fl=new THREE.Mesh(new THREE.SphereGeometry(.13,6,6),M.torch);fl.position.set(.9,4.72,0);g.add(fl);
+  const pl=new THREE.PointLight(0xFFAA40,2,12);pl.position.set(.9,4.75,0);g.add(pl);
+  g.position.set(x,0,z);scene.add(g);
+}
+[[7,7],[-7,7],[7,-7],[-7,-7],[0,15],[0,-15],[15,0],[-15,0],[20,20],[-20,20],[20,-20],[-20,-20]].forEach(([a,b])=>lamp(a,b));
+
+// ── TREES ──
+function tree(x,z,sc=1){
+  const g=new THREE.Group();
+  const trk=new THREE.Mesh(new THREE.CylinderGeometry(.12*sc,.2*sc,1.6*sc,7),new THREE.MeshLambertMaterial({color:0x5A3010}));
+  trk.position.y=.8*sc;trk.castShadow=true;g.add(trk);
+  const fc=new THREE.MeshLambertMaterial({color:0x1C6C1E});
+  [[0,1.7*sc+.8,0,1.8*sc,.9*sc],[0,1.7*sc+1.55,0,1.35*sc,.75*sc],[0,1.7*sc+2.2,0,.9*sc,.6*sc]].forEach(([tx,ty,tz,r,ch])=>{
+    const c=new THREE.Mesh(new THREE.ConeGeometry(r,ch*1.6,8),fc);c.position.set(tx,ty,tz);c.castShadow=true;g.add(c);
+  });
+  g.position.set(x,0,z);scene.add(g);addCol(x,z,.9,.9);
+}
+// Forest ring
+for(let a=0;a<Math.PI*2;a+=.22){const r=42+Math.random()*16;tree(Math.cos(a)*r,Math.sin(a)*r,.75+Math.random()*.55);}
+// Interior extras
+[[-30,6],[-28,-9],[30,9],[28,-6],[0,-34],[0,34],[-14,-30],[14,30],[-34,-20],[34,-20],[-34,20],[34,20]].forEach(([tx,tz])=>tree(tx,tz,.7+Math.random()*.5));
+
+setLoad(40,'Raising the buildings…');
+
+// ── TUDOR BUILDING ──
+function tudor({x,z,w,d,h1=3.8,h2=3.2,rh=3.5,ry=0,chimney=false,roofMat=null}){
+  roofMat=roofMat||M.thatch;
+  const ow=w+.6,od=d+.6;
+  // Ground floor
+  bx(w,h1,d,M.brick,x,h1/2,z,0,ry);
+  // Upper floor (plaster, overhangs)
+  bx(ow,h2,od,M.plaster,x,h1+h2/2,z,0,ry);
+  // Timber beams on upper floor
+  const beamFn=(bx2,by,bz,bw,bh2,bd,bry)=>{const m=new THREE.Mesh(new THREE.BoxGeometry(bw,bh2,bd),M.beam);m.position.set(bx2,by,bz);m.rotation.y=bry||0;m.castShadow=true;scene.add(m);};
+  // Horizontal beams front/back
+  const cos=Math.cos(ry),sin=Math.sin(ry);
+  [-1,1].forEach(s=>{
+    const bz=s*(od/2),relX=x+sin*bz,relZ=z+cos*bz;
+    const beamY=h1+.4;
+    bx(ow,.14,.12,M.beam,x+sin*(s*od/2),beamY,z+cos*(s*od/2),0,ry);
+    bx(ow,.14,.12,M.beam,x+sin*(s*od/2),h1+h2-.25,z+cos*(s*od/2),0,ry);
+    [-ow/2+.6,0,ow/2-.6].forEach(vbx=>{
+      const vm=new THREE.Mesh(new THREE.BoxGeometry(.12,h2,.12),M.beam);
+      const localX=vbx*cos-0*sin,localZ=vbx*sin+0*cos;
+      vm.position.set(x+localX+sin*(s*od/2),h1+h2/2,z+localZ+cos*(s*od/2));vm.castShadow=true;scene.add(vm);
+    });
+  });
+  // Windows GF front
+  const winyGF=h1*.55;
+  [-w/3,w/3].forEach(wx=>{
+    const lx=wx*cos,lz=wx*sin,fz=d/2+.02,lfx=fz*sin,lfz=fz*cos;
+    bx(.85,1.05,.14,M.win,x+lx+lfx,winyGF,z+lz+lfz,0,ry);
+    bx(1.05,1.25,.1,M.beam,x+lx+lfx*.98,winyGF,z+lz+lfz*.98,0,ry);
+  });
+  // Windows upper front/back
+  [-1,1].forEach(s=>{
+    [-ow/3,ow/3].forEach(wx=>{
+      const lx=wx*cos,lz=wx*sin,fz=s*(od/2+.02),lfx=fz*sin,lfz=fz*cos;
+      bx(.78,.95,.14,M.win,x+lx+lfx,h1+h2*.5,z+lz+lfz,0,ry);
+    });
+  });
+  // Door
+  const dfx=(d/2+.02)*sin,dfz=(d/2+.02)*cos;
+  bx(1.25,2.25,.16,M.door,x+dfx,1.12,z+dfz,0,ry);
+  bx(1.55,2.45,.1,M.beam,x+dfx*.98,1.12,z+dfz*.98,0,ry);
+  bx(1.85,.22,.5,M.stone,x+dfx+dfx*.15,0.11,z+dfz+dfz*.15,0,ry);
+  // Roof
+  roof(ow+.6,rh,od+.7,roofMat,x,h1+h2,z,ry);
+  // Chimney
+  if(chimney){
+    const cx2=x+(.22*w)*cos-(-.2*d)*sin,cz2=z+(.22*w)*sin+(-.2*d)*cos;
+    bx(.85,rh*.9+h2*.4,.85,M.brick,cx2,h1+h2+rh*.45,cz2,0,ry);
+  }
+  // Sign bracket
+  const sx=(w/2-.3)*cos,sz=(w/2-.3)*sin,sfx=(d/2+.6)*sin,sfz=(d/2+.6)*cos;
+  bx(.07,1.3,.07,M.beam,x+sx+sfx,h1+.9,z+sz+sfz,0,ry);
+  bx(2.8,.65,.09,M.sign,x+sx+sfx-cos*1.1,h1+.9,z+sz+sfz-sin*1.1,0,ry);
+}
+
+// ── STONE COTTAGE ──
+function cottage({x,z,w,d,h=3.8,rh=2.8,ry=0,chimney=true}){
+  bx(w,h,d,M.stone,x,h/2,z,0,ry);
+  const cos=Math.cos(ry),sin=Math.sin(ry);
+  // Windows
+  [-w/3.5,w/3.5].forEach(wx=>{
+    const lx=wx*cos,lz=wx*sin,fz=(d/2+.01)*sin,fzz=(d/2+.01)*cos;
+    bx(.72,.85,.13,M.win,x+lx+fz,h*.55,z+lz+fzz,0,ry);
+  });
+  // Door
+  const df=(d/2+.02);
+  bx(1.1,2.1,.16,M.door,x+df*sin,1.05,z+df*cos,0,ry);
+  bx(1.4,.22,.45,M.stone,x+df*sin+df*.15*sin,0.11,z+df*cos+df*.15*cos,0,ry);
+  // Roof
+  roof(w+.5,rh,d+.8,M.thatch,x,h,z,ry);
+  if(chimney){
+    const cx2=x+(.18*w)*cos-(-.12*d)*sin,cz2=z+(.18*w)*sin+(-.12*d)*cos;
+    bx(.7,rh*.85+.3,.7,M.brick,cx2,h+rh*.42,cz2,0,ry);
+  }
+  bx(.07,1.2,.07,M.beam,x+(w/2-.2)*cos+(d/2+.5)*sin,h*.72,z+(w/2-.2)*sin+(d/2+.5)*cos,0,ry);
+  bx(2.5,.6,.09,M.sign,x+(w/2-.2)*cos+(d/2+.5)*sin-cos*1.05,h*.72,z+(w/2-.2)*sin+(d/2+.5)*cos-sin*1.05,0,ry);
+}
+
+// ── GRAND BUILDING ──
+function grand({x,z,w,d,h1=4.5,h2=4,rh=4.5,ry=0}){
+  const cos=Math.cos(ry),sin=Math.sin(ry);
+  bx(w,h1,d,M.stone,x,h1/2,z,0,ry);
+  // Pillars
+  [-w/2+1.1,w/2-1.1].forEach(px=>{
+    const lx=px*cos,lz=px*sin,ff=(d/2+.4);
+    const p=new THREE.Mesh(new THREE.CylinderGeometry(.42,.52,h1,10),M.stone);
+    p.position.set(x+lx+ff*sin,h1/2,z+lz+ff*cos);p.castShadow=true;scene.add(p);
+  });
+  bx(w+.3,h2,d+.3,M.stone,x,h1+h2/2,z,0,ry);
+  // Gothic windows upper floor
+  [-w*.3,0,w*.3].forEach(wx=>{
+    const lx=wx*cos,lz=wx*sin,ff=(d/2+.01);
+    bx(.82,1.05,.14,M.win,x+lx+ff*sin,h1+h2*.48,z+lz+ff*cos,0,ry);
+    const arc=new THREE.Mesh(new THREE.CylinderGeometry(.42,.42,.15,8,1,false,0,Math.PI),M.win);
+    arc.rotation.x=Math.PI/2;arc.rotation.y=ry;arc.position.set(x+lx+ff*sin,h1+h2*.48+.6,z+lz+ff*cos);scene.add(arc);
+  });
+  // Grand door + arch
+  const fd=d/2+.01;
+  bx(1.9,3,.22,M.door,x+fd*sin,1.5,z+fd*cos,0,ry);
+  const da=new THREE.Mesh(new THREE.CylinderGeometry(.96,.96,.22,14,1,false,0,Math.PI),M.door);
+  da.rotation.x=Math.PI/2;da.rotation.y=ry;da.position.set(x+fd*sin,3.08,z+fd*cos);scene.add(da);
+  // Steps
+  [1,2].forEach(i=>{bx(2.5+i*.5,.22,.5+i*.2,M.stone,x+fd*sin+fd*.15*sin*i,i*.2-.1,z+fd*cos+fd*.15*cos*i,0,ry);});
+  // Parapets
+  bx(w+.5,.65,.32,M.stone,x+(d/2+.15)*sin,h1+h2+.32,z+(d/2+.15)*cos,0,ry);
+  for(let bi=-w/2;bi<=w/2;bi+=1.6){
+    const lx=bi*cos,lz=bi*sin;
+    bx(.62,.52,.32,M.stone,x+lx+(d/2+.15)*sin,h1+h2+.9,z+lz+(d/2+.15)*cos,0,ry);
+  }
+  // Hip roof
+  roof(w+.5,rh,d+.7,M.slate,x,h1+h2,z,ry);
+  // Corner towers
+  [-w/2,w/2].forEach(tx=>{
+    const lx=tx*cos,lz=tx*sin,bd=-d/2;
+    const t=new THREE.Mesh(new THREE.CylinderGeometry(1.25,1.45,h1+h2+1.1,8),M.stone);
+    t.position.set(x+lx+bd*sin,((h1+h2)+1.1)/2,z+lz+bd*cos);t.castShadow=true;scene.add(t);
+    const tc=new THREE.Mesh(new THREE.ConeGeometry(1.5,2.8,8),M.slate);
+    tc.position.set(x+lx+bd*sin,h1+h2+1.65,z+lz+bd*cos);tc.castShadow=true;scene.add(tc);
+  });
+  // Sign
+  bx(3.2,.7,.1,M.sign,x,h1*.6,z+(d/2+.2)*cos,0,ry);
+}
+
+// ── MARKET STALL ──
+function stall({x,z,ry=0,aw=null}){
+  const am=aw||M.awR;
+  [-1.5,1.5].forEach(lx=>[-1,1].forEach(lz=>{bx(.1,.12,2.5,M.iron,x+lx*Math.cos(ry),1.25,z+lx*Math.sin(ry)+lz,0,ry);}));
+  // Awning
+  bx(3.5,.1,2.5,am,x,2.55,z,-.18,ry);
+  // Counter
+  bx(3,.14,1,M.wood,x,1.08,z+.7*Math.cos(ry),0,ry);
+  [[.55,0xAA5500],[-.2,0x228822],[-.9,0xCC4422]].forEach(([ox,col])=>{const m=new THREE.Mesh(new THREE.BoxGeometry(.22,.14,.18),new THREE.MeshLambertMaterial({color:col}));m.position.set(x+ox,1.17,z+.65*Math.cos(ry));scene.add(m);});
+  const br=new THREE.Mesh(new THREE.CylinderGeometry(.26,.29,.72,8),M.wood);br.position.set(x-1.1,.36,z-.6);br.castShadow=true;scene.add(br);
+}
+
+// ── NPC ──
+function npc(x,z,mat){
+  const g=new THREE.Group();
+  const body=new THREE.Mesh(new THREE.CylinderGeometry(.28,.33,1.15,8),mat);body.position.y=.7;body.castShadow=true;g.add(body);
+  const head=new THREE.Mesh(new THREE.SphereGeometry(.23,8,8),M.skin);head.position.y=1.52;head.castShadow=true;g.add(head);
+  const hat=new THREE.Mesh(new THREE.ConeGeometry(.26,.42,8),mat);hat.position.y=1.88;g.add(hat);
+  const abrim=new THREE.Mesh(new THREE.CylinderGeometry(.35,.35,.05,12),mat);abrim.position.y=1.71;g.add(abrim);
+  [-1,1].forEach(s=>{const arm=new THREE.Mesh(new THREE.CylinderGeometry(.07,.07,.85,6),mat);arm.position.set(s*.42,.85,0);arm.rotation.z=s*.35;arm.castShadow=true;g.add(arm);});
+  g.position.set(x,0,z);scene.add(g);return g;
+}
+
+// ── BARREL / CRATE / HAY ──
+function barrel(x,z){const b=new THREE.Mesh(new THREE.CylinderGeometry(.26,.29,.68,8),M.wood);b.position.set(x,.34,z);b.castShadow=true;scene.add(b);addCol(x,z,.7,.7);}
+function crate(x,z,s=.9){const c=new THREE.Mesh(new THREE.BoxGeometry(.82*s,.82*s,.82*s),M.wood);c.position.set(x,.41*s,z);c.castShadow=true;scene.add(c);addCol(x,z,.95*s,.95*s);}
+function haybale(x,z){const h=new THREE.Mesh(new THREE.CylinderGeometry(.72,.72,1.05,12),M.hay);h.rotation.z=Math.PI/2;h.position.set(x,.72,z);h.castShadow=true;scene.add(h);addCol(x,z,1.7,1.2);}
+
+// ── FORGE ANVIL ──
+function anvil(x,z){
+  const base=new THREE.Mesh(new THREE.BoxGeometry(.6,.3,.4),M.iron);base.position.set(x,.15,z);scene.add(base);
+  const top=new THREE.Mesh(new THREE.BoxGeometry(.7,.2,.5),M.iron);top.position.set(x,.38,z);scene.add(top);
+}
+
+// ── WELL ──
+function well(x,z){
+  const base=new THREE.Mesh(new THREE.CylinderGeometry(.7,.75,.55,10),M.stone);base.position.set(x,.27,z);base.castShadow=base.receiveShadow=true;scene.add(base);
+  const water=new THREE.Mesh(new THREE.CylinderGeometry(.6,.6,.05,10),M.water);water.position.set(x,.52,z);scene.add(water);
+  [-1,1].forEach(s=>{const p=new THREE.Mesh(new THREE.CylinderGeometry(.05,.06,.8,5),M.wood);p.position.set(x+s*.6,.4,z);p.castShadow=true;scene.add(p);});
+  const bar=new THREE.Mesh(new THREE.CylinderGeometry(.04,.04,1.4,5),M.wood);bar.rotation.x=Math.PI/2;bar.position.set(x,.85,z);scene.add(bar);
+  addCol(x,z,1.6,1.6);
+}
+
+setLoad(55,'Constructing the shops…');
+
+// ══════════════════════════════════════
+// BUILD THE WORLD
+// ══════════════════════════════════════
+
+// TAVERN (west, faces east)
+tudor({x:-26,z:0,w:14,d:11,h1:3.9,h2:3.3,rh:3.6,ry:Math.PI/2,chimney:true,roofMat:M.thatch});
+addCol(-26,0,12,15);
+[[-21,3],[-21,-3],[-21.5,5]].forEach(([a,b])=>barrel(a,b));
+crate(-20.5,-.5);haybale(-20,-5.5);well(-20,6);
+
+// BLACKSMITH (east, faces west)
+cottage({x:26,z:-5,w:13,d:11,h:4.6,rh:3.2,ry:-Math.PI/2,chimney:true});
+addCol(26,-5,13,12);
+// Forge details
+bx(2,.6,2,M.stone,21.5,.3,-5);bx(2,.4,2,M.iron,21.5,.7,-5);
+anvil(21.5,-2.8);
+[[-20.5,-8],[-21,-6]].forEach(([a,b])=>barrel(a,b));
+[[-21,-3.5]].forEach(([a,b])=>crate(a,b));
+// Sparks/smoke placeholder - chimney glow
+const forgeGlow=new THREE.PointLight(0xFF6600,3,8);forgeGlow.position.set(26,5.5,-8);scene.add(forgeGlow);
+
+// ARCHERY SHOP (north, faces south)
+tudor({x:-2,z:-30,w:18,d:9,h1:3.3,h2:2.9,rh:2.8,ry:0,chimney:false,roofMat:M.thatch});
+addCol(-2,-30,18,10);
+// Targets
+[-6,-2,2].forEach(tx=>{
+  const tpost=new THREE.Mesh(new THREE.CylinderGeometry(.05,.06,1.8,6),M.wood);tpost.position.set(tx,.9,-23);tpost.castShadow=true;scene.add(tpost);
+  const ttgt=new THREE.Mesh(new THREE.CylinderGeometry(.55,.55,.1,16),new THREE.MeshLambertMaterial({color:0xEEEEEE}));ttgt.rotation.x=Math.PI/2;ttgt.position.set(tx,1.65,-23);scene.add(ttgt);
+  const tmid=new THREE.Mesh(new THREE.CylinderGeometry(.3,.3,.12,16),new THREE.MeshLambertMaterial({color:0xCC2222}));tmid.rotation.x=Math.PI/2;tmid.position.set(tx,1.65,-22.92);scene.add(tmid);
+  const tcen=new THREE.Mesh(new THREE.CylinderGeometry(.12,.12,.13,12),new THREE.MeshLambertMaterial({color:0xFFFF00}));tcen.rotation.x=Math.PI/2;tcen.position.set(tx,1.65,-22.85);scene.add(tcen);
+});
+
+// APOTHECARY (southeast, faces northwest)
+cottage({x:26,z:22,w:9,d:9,h:3.9,rh:2.9,ry:Math.PI/2+.3,chimney:true});
+addCol(26,22,10,10);
+// Herb garden
+[-1,0,1].forEach(hi=>{const herb=new THREE.Mesh(new THREE.SphereGeometry(.22,.25,.35,5,5),new THREE.MeshLambertMaterial({color:0x2D8B2D}));herb.position.set(20+hi*.6,.22,22+Math.abs(hi)*.3);scene.add(herb);});
+well(20.5,25.5);
+
+// MARKET (south, open stalls)
+stall({x:-8,z:26,ry:0,aw:M.awR});
+stall({x:-2,z:27.5,ry:.15,aw:M.awB});
+stall({x:4,z:25.8,ry:-.12,aw:M.awG});
+addCol(-3,26,16,5);
+[[-10,22],[-4,22],[2,22]].forEach(([a,b])=>barrel(a,b));
+[[-9,29],[-5,30],[1,28]].forEach(([a,b])=>crate(a,b,1));
+
+// TREASURY (south grand building, faces north)
+grand({x:2,z:-34,w:20,d:15,h1:4.8,h2:4.2,rh:5,ry:0});
+addCol(2,-34,22,17);
+[[-8,-26],[-6,-26],[8,-26],[6,-26]].forEach(([a,b])=>crate(a,b,1.1));
+
+// Extra decorative buildings
+// Small inn annex
+cottage({x:-26,z:-18,w:8,d:7,h:3.2,rh:2.4,ry:Math.PI*.6,chimney:false});addCol(-26,-18,9,8);
+// Storage barn (north-east)
+cottage({x:26,z:-24,w:10,d:8,h:3.8,rh:2.5,ry:Math.PI/4,chimney:false});addCol(26,-24,11,9);
+
+setLoad(72,'Populating the city…');
+
+// ══════════════════════════════════════
+// SHOPS DATA
+// ══════════════════════════════════════
+const SHOPS=[
+  {id:'tavern',name:"The Merry Men's Tavern",npc:'Friar Tuck',pos:new THREE.Vector3(-26,0,0),r:10,npcMesh:null,npcX:-19,npcZ:0,
+   wares:[
+     {id:'mutton',  name:'Roasted Mutton',  icon:'🍖',qty:12,price:8},
+     {id:'mead',    name:'Mead Flask',      icon:'🫙',qty:8, price:14},
+     {id:'bread',   name:'Bread Loaf',      icon:'🍞',qty:18,price:4},
+     {id:'potion',  name:'Healing Potion',  icon:'🧪',qty:5, price:28},
+   ]},
+  {id:'smithy',name:"Little John's Smithy",npc:'Little John',pos:new THREE.Vector3(26,0,-5),r:10,npcMesh:null,npcX:20,npcZ:-5,
+   wares:[
+     {id:'sword',   name:'Iron Sword',       icon:'⚔️', qty:4, price:62},
+     {id:'shield',  name:'Oak Shield',       icon:'🛡️', qty:3, price:46},
+     {id:'arrows20',name:'Arrow Bundle ×20',icon:'🏹',qty:10,price:15},
+     {id:'chainmail',name:'Chainmail Coif', icon:'⛓️', qty:2, price:95},
+   ]},
+  {id:'archery',name:"Will Scarlet's Archery",npc:'Will Scarlet',pos:new THREE.Vector3(-2,0,-30),r:9,npcMesh:null,npcX:-2,npcZ:-23,
+   wares:[
+     {id:'bow',     name:'Longbow',          icon:'🪃',qty:3, price:42},
+     {id:'arrows50',name:'Arrow Bundle ×50',icon:'🏹',qty:6, price:32},
+     {id:'quiver',  name:'Fine Quiver',      icon:'🎯',qty:4, price:20},
+     {id:'bstring', name:'Bowstring',        icon:'〰️',qty:10,price:9},
+   ]},
+  {id:'apoth',name:"Friar Tuck's Remedies",npc:'Brother Edmund',pos:new THREE.Vector3(26,0,22),r:9,npcMesh:null,npcX:20,npcZ:22,
+   wares:[
+     {id:'herbs',   name:'Healing Herbs',   icon:'🌿',qty:14,price:10},
+     {id:'antidote',name:'Antidote Vial',   icon:'💧',qty:6, price:22},
+     {id:'elixir',  name:'Strength Elixir', icon:'⚗️',qty:3, price:55},
+     {id:'berries', name:'Elderberries',    icon:'🫐',qty:22,price:5},
+   ]},
+  {id:'market',name:"Maid Marian's Market",npc:'Maid Marian',pos:new THREE.Vector3(-2,0,26),r:10,npcMesh:null,npcX:-2,npcZ:20,
+   wares:[
+     {id:'cloth',   name:'Fine Cloth',      icon:'🧵',qty:10,price:13},
+     {id:'rope',    name:'Hemp Rope',       icon:'🪢',qty:16,price:6},
+     {id:'candle',  name:'Candle Bundle',   icon:'🕯️',qty:20,price:4},
+     {id:'map',     name:"Sheriff's Map",   icon:'🗺️',qty:2, price:38},
+   ]},
+  {id:'treasury',name:"The Sheriff's Exchange",npc:'Gisborne the Collector',pos:new THREE.Vector3(2,0,-34),r:10,npcMesh:null,npcX:2,npcZ:-26,
+   wares:[
+     {id:'ruby',    name:'Ruby Gem',        icon:'💎',qty:3, price:85},
+     {id:'goldbar', name:'Gold Bar',        icon:'🏅',qty:2, price:110},
+     {id:'silver',  name:'Silver Coin Bag', icon:'🪙',qty:8, price:28},
+     {id:'deed',    name:'Land Deed',       icon:'📜',qty:1, price:220},
+   ]},
+];
+
+// NPC materials per shop
+const npcMats=[M.grn,M.brn,M.red,M.gry,M.prp,M.nvy];
+SHOPS.forEach((s,i)=>{s.npcMesh=npc(s.npcX,s.npcZ,npcMats[i]);});
+
+// Scatter props
+[[-24,8],[-23,-6],[-22,-8],[22,-8],[23,-10],[24,3],[24,-12],[0,-24],[0,-22],[4,-24],[-1,24],[3,26],[-5,28],[26,28],[28,24]].forEach(([a,b])=>barrel(a,b));
+[[-22,3],[22,2],[22,-12],[0,-22],[4,24],[-4,24],[25,26]].forEach(([a,b])=>crate(a,b,.8+Math.random()*.4));
+[[-24,12],[24,12],[24,-15],[-24,-15]].forEach(([a,b])=>haybale(a,b));
+
+setLoad(85,'Sharpening the arrows…');
+
+// ── FIRST PERSON BOW ──
+(()=>{
+  const g=new THREE.Group();
+  const bowMat=new THREE.MeshLambertMaterial({color:0x6B3A10});
+  const curve=new THREE.QuadraticBezierCurve3(new THREE.Vector3(0,-.3,0),new THREE.Vector3(.12,0,0),new THREE.Vector3(0,.3,0));
+  const bowGeo=new THREE.TubeGeometry(curve,14,.022,6,false);
+  g.add(new THREE.Mesh(bowGeo,bowMat));
+  // String
+  const strGeo=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0,-.3,.01),new THREE.Vector3(0,.3,.01)]);
+  g.add(new THREE.Line(strGeo,new THREE.LineBasicMaterial({color:0xD8C890})));
+  // Handle wrap
+  const wrap=new THREE.Mesh(new THREE.CylinderGeometry(.03,.03,.2,6),new THREE.MeshLambertMaterial({color:0x8B6010}));
+  wrap.position.y=0;g.add(wrap);
+  g.position.set(.3,-.28,-.55);g.rotation.set(.18,.08,.1);
+  camera.add(g);
+})();
+
+// ══════════════════════════════════════
+// PLAYER & GAME STATE
+// ══════════════════════════════════════
+const player={
+  gold:100,health:100,
+  inv:[
+    {id:'arrows20',name:'Arrow Bundle ×20',icon:'🏹',qty:2,val:12},
+    {id:'bread',   name:'Bread Loaf',      icon:'🍞',qty:5, val:3},
+    {id:'herbs',   name:'Healing Herbs',   icon:'🌿',qty:3, val:8},
+    {id:'bow',     name:'Old Bow',         icon:'🪃',qty:1, val:25},
+  ]
+};
+
+let nearShop=null,openShop_=null,shopOpen=false,paused=false,started=false,openingShop=false;
+
+// ── HUD UPDATE ──
+function updateHUD(){gVal.textContent=player.gold;hpFill.style.width=player.health+'%';sGold.textContent=player.gold;}
+
+// ── TOAST ──
+function toast(msg,type=''){
+  const t=document.createElement('div');t.className='toast'+(type?' '+type:'');t.textContent=msg;
+  toastsEl.appendChild(t);setTimeout(()=>t.remove(),3200);
+}
+
+// ── COMPASS ──
+function compass(){
+  const d=camera.getWorldDirection(new THREE.Vector3());
+  const a=((Math.atan2(d.x,d.z)*180/Math.PI)+360)%360;
+  const dirs=['S','SW','W','NW','N','NE','E','SE','S'];
+  return dirs[Math.round(a/45)];
+}
+
+// ── SHOP RENDER ──
+function renderShop(s){
+  sName.textContent=s.name;sNpc.textContent=`~ ${s.npc} ~`;sGold.textContent=player.gold;
+  sWares.innerHTML='';
+  s.wares.forEach(item=>{
+    const ok=player.gold>=item.price&&item.qty>0;
+    sWares.innerHTML+=`<div class="ic">
+      <div class="ii">${item.icon}</div>
+      <div class="in">${item.name}</div>
+      <div class="iq">In stock: ${item.qty}</div>
+      <div class="ip">💰 ${item.price} gold</div>
+      <button class="ib" ${ok?'':'disabled'} data-act="buy" data-id="${item.id}">${item.qty===0?'SOLD OUT':!ok?'NEED GOLD':'BUY'}</button>
+    </div>`;
+  });
+  sInv.innerHTML='';
+  if(!player.inv.length){sInv.innerHTML='<div style="color:#5a4828;font-size:.68rem;grid-column:span 2;padding:.8rem 0">Satchel is empty</div>';return;}
+  player.inv.forEach(it=>{
+    const sp=Math.max(1,Math.floor(it.val*.7));
+    sInv.innerHTML+=`<div class="ic">
+      <div class="ii">${it.icon}</div>
+      <div class="in">${it.name}</div>
+      <div class="iq">Qty: ${it.qty}</div>
+      <div class="ip">+ ${sp} gold</div>
+      <button class="ib" data-act="sell" data-id="${it.id}" data-sp="${sp}">SELL ONE</button>
+    </div>`;
+  });
+}
+
+function openShopUI(s){
+  openingShop=true;shopOpen=true;openShop_=s;
+  controls.unlock();
+  shopEl.classList.add('on');renderShop(s);
+  toast(`Welcome to ${s.name}!`);
+  setTimeout(()=>{openingShop=false;},120);
+}
+function closeShopUI(){
+  shopOpen=false;openShop_=null;shopEl.classList.remove('on');
+  controls.lock();
+}
+
+// Shop events
+shopEl.addEventListener('click',e=>{
+  const btn=e.target.closest('.ib');if(!btn||btn.disabled||!openShop_)return;
+  const act=btn.dataset.act,id=btn.dataset.id;
+  if(act==='buy'){
+    const item=openShop_.wares.find(i=>i.id===id);if(!item||item.qty===0||player.gold<item.price)return;
+    player.gold-=item.price;item.qty--;
+    const ex=player.inv.find(i=>i.id===id);
+    if(ex)ex.qty++;else player.inv.push({...item,qty:1,val:Math.floor(item.price*.75)});
+    toast(`Bought ${item.name} for ${item.price} gold`,'ok');renderShop(openShop_);updateHUD();
+  }
+  if(act==='sell'){
+    const it=player.inv.find(i=>i.id===id);if(!it)return;
+    const sp=parseInt(btn.dataset.sp);player.gold+=sp;it.qty--;
+    if(it.qty<=0)player.inv=player.inv.filter(i=>i.id!==id);
+    toast(`Sold for ${sp} gold`,'ok');renderShop(openShop_);updateHUD();
+  }
+});
+document.getElementById('close-btn').addEventListener('click',closeShopUI);
+
+// ── INPUT ──
+const K={};
+window.addEventListener('keydown',e=>{K[e.code]=true;
+  if(!started)return;
+  if(e.code==='KeyE'&&nearShop&&!shopOpen&&controls.isLocked)openShopUI(nearShop);
+  if(e.code==='Escape'&&shopOpen){shopOpen=false;shopEl.classList.remove('on');}
+});
+window.addEventListener('keyup',e=>{K[e.code]=false;});
+
+// ── POINTER LOCK EVENTS ──
+controls.addEventListener('lock',()=>{
+  if(!started)return;
+  paused=false;pauseEl.classList.remove('on');
+});
+controls.addEventListener('unlock',()=>{
+  if(!started||openingShop)return;
+  if(shopOpen){shopOpen=false;shopEl.classList.remove('on');}
+  paused=true;pauseEl.classList.add('on');
+});
+pauseEl.addEventListener('click',()=>{if(paused&&!shopOpen)controls.lock();});
+
+// ── MOVEMENT ──
+const vel=new THREE.Vector3(),dir=new THREE.Vector3(),clock=new THREE.Clock();
+const BOUND=40,EYEH=1.75;
+
+// ── LOADING DONE ──
+setLoad(100,'Ready!');
+setTimeout(()=>{enterBtn.style.display='block';loadStatus.textContent='';},300);
+enterBtn.addEventListener('click',()=>controls.lock());
+controls.addEventListener('lock',()=>{
+  if(!started){
+    started=true;
+    loadingEl.style.transition='opacity 1.1s ease';loadingEl.style.opacity='0';
+    setTimeout(()=>{loadingEl.style.display='none';},1150);
+    hudEl.classList.add('on');updateHUD();
+    toast('Welcome to HOODCITY, brave outlaw!','ok');
+    setTimeout(()=>toast('Approach a shop and press E to trade.'),1800);
+  }
+});
+
+// ── MINIMAP ──
+function drawMinimap(){
+  const cx=55,cy=55,scale=1.6;
+  mmCtx.clearRect(0,0,110,110);
+  mmCtx.save();mmCtx.beginPath();mmCtx.arc(cx,cy,52,0,Math.PI*2);mmCtx.clip();
+  mmCtx.fillStyle='#1a1208';mmCtx.fillRect(0,0,110,110);
+  // Roads
+  mmCtx.fillStyle='#4a3c20';
+  mmCtx.fillRect(cx-5,0,10,110);mmCtx.fillRect(0,cy-5,110,10);
+  // Shops
+  const shopColors=['#2E7D32','#5D4037','#B71C1C','#455A64','#6A1B9A','#1A237E'];
+  SHOPS.forEach((s,i)=>{
+    const sx=cx+(s.pos.x-camera.position.x)*scale/3,sy=cy+(s.pos.z-camera.position.z)*scale/3;
+    mmCtx.fillStyle=shopColors[i];mmCtx.fillRect(sx-4,sy-4,8,8);
+  });
+  // Player dot
+  mmCtx.fillStyle='#c8a84b';mmCtx.beginPath();mmCtx.arc(cx,cy,4,0,Math.PI*2);mmCtx.fill();
+  // Direction
+  const fwd=camera.getWorldDirection(new THREE.Vector3());
+  mmCtx.strokeStyle='#c8a84b';mmCtx.lineWidth=2;
+  mmCtx.beginPath();mmCtx.moveTo(cx,cy);mmCtx.lineTo(cx+fwd.x*12,cy+fwd.z*12);mmCtx.stroke();
+  mmCtx.restore();
+  // Border
+  mmCtx.strokeStyle='rgba(200,168,75,.4)';mmCtx.lineWidth=1.5;mmCtx.beginPath();mmCtx.arc(cx,cy,52,0,Math.PI*2);mmCtx.stroke();
+}
+
+// ── SMOKE PARTICLES ──
+const smokeParts=[];
+(()=>{
+  const geo=new THREE.SphereGeometry(.2,4,4);
+  const mat=new THREE.MeshBasicMaterial({color:0x888888,transparent:true,opacity:.4});
+  // Chimneys at tavern and smithy
+  [[-25,8,-2],[26,5.5,-9]].forEach(([sx,sy,sz])=>{
+    for(let i=0;i<8;i++){
+      const p=new THREE.Mesh(geo,mat.clone());
+      p.position.set(sx+Math.random()*.4,sy+Math.random()*3,sz+Math.random()*.4);
+      p.userData={ox:sx,oy:sy,oz:sz,t:Math.random()*6,spd:.4+Math.random()*.4};
+      p.scale.setScalar(.3+Math.random()*.5);
+      scene.add(p);smokeParts.push(p);
+    }
+  });
+})();
+
+// ── FORGE FLICKER ──
+let forgeT=0;
+
+// ── ANIMATION LOOP ──
+let t=0;
+function animate(){
+  requestAnimationFrame(animate);
+  const dt=Math.min(clock.getDelta(),.1);t+=dt;forgeT+=dt;
+
+  // Smoke
+  smokeParts.forEach(p=>{
+    p.userData.t+=dt*p.userData.spd;
+    const pt=p.userData.t;
+    p.position.set(p.userData.ox+Math.sin(pt*.7)*.3,p.userData.oy+((pt%5)*1.2),p.userData.oz+Math.cos(pt*.5)*.3);
+    p.material.opacity=Math.max(0,.5-((pt%5)/5)*.5);p.scale.setScalar(.3+((pt%5)/5)*.6);
+  });
+
+  // Forge flicker
+  forgeGlow.intensity=2.5+Math.sin(forgeT*12)*.8+Math.sin(forgeT*7.3)*.5;
+
+  // NPC animation
+  SHOPS.forEach((s,i)=>{
+    if(s.npcMesh){s.npcMesh.position.y=Math.sin(t*1.1+i)*.05;s.npcMesh.rotation.y=Math.sin(t*.45+i*1.4)*.28;}
+  });
+
+  if(controls.isLocked&&!shopOpen){
+    vel.x-=vel.x*11*dt;vel.z-=vel.z*11*dt;
+    const mf=K['KeyW']||K['ArrowUp'],mb=K['KeyS']||K['ArrowDown'];
+    const ml=K['KeyA']||K['ArrowLeft'],mr=K['KeyD']||K['ArrowRight'];
+    dir.z=Number(mf)-Number(mb);dir.x=Number(mr)-Number(ml);dir.normalize();
+    const spd=(K['ShiftLeft']||K['ShiftRight'])?14:7;
+    if(mf||mb)vel.z-=dir.z*spd*18*dt;
+    if(ml||mr)vel.x-=dir.x*spd*18*dt;
+
+    const obj=controls.getObject();
+    const nx=obj.position.x+(-vel.x)*dt,nz=obj.position.z+(-vel.z)*dt;
+
+    if(!hitting(nx,obj.position.z)&&Math.abs(nx)<BOUND)controls.moveRight(-vel.x*dt);
+    if(!hitting(obj.position.x,nz)&&Math.abs(nz)<BOUND)controls.moveForward(-vel.z*dt);
+    obj.position.y=EYEH;
+
+    // Shop proximity
+    const pp=obj.position;nearShop=null;
+    for(const s of SHOPS){if(pp.distanceTo(s.pos)<s.r){nearShop=s;break;}}
+    if(nearShop){hintEl.textContent=`[ E ]  ${nearShop.name}`;hintEl.classList.add('show');}
+    else hintEl.classList.remove('show');
+
+    compassEl.textContent=compass();
+    drawMinimap();
+  }
+  renderer.render(scene,camera);
+}
+animate();
+</script>
+</body>
+</html>
