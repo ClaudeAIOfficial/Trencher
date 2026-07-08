@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>HOODCITY</title>
+  </head>
+  <body>
+    <div id="app">
+      <canvas id="scene-canvas"></canvas>
+
+      <!-- ============ START / MENU SCREEN ============ -->
+      <div id="start-screen">
+        <div class="start-bg-vignette"></div>
+        <canvas id="hero-canvas"></canvas>
+
+        <div class="start-content">
+          <h1 class="game-title">
+            <span class="title-hood">HOOD</span><span class="title-city">CITY</span>
+          </h1>
+          <p class="game-subtitle">A Sherwood Legend &mdash; First Person Outlaw Life</p>
+
+          <div class="start-panel">
+            <div class="start-panel-row">
+              <span class="key-badge">WASD</span> Move
+              <span class="key-badge">Mouse</span> Look
+              <span class="key-badge">Space</span> Jump
+              <span class="key-badge">Shift</span> Sprint
+            </div>
+            <div class="start-panel-row">
+              <span class="key-badge">Click</span> Draw &amp; Shoot Bow
+              <span class="key-badge">E</span> Trade / Interact
+              <span class="key-badge">Esc</span> Menu
+            </div>
+          </div>
+
+          <button id="play-btn" class="play-btn">Enter Sherwood</button>
+          <p class="start-hint">Rob the Sheriff's coffers, trade with the townsfolk, and become the legend of HOODCITY.</p>
+        </div>
+      </div>
+
+      <!-- ============ PAUSE / POINTER-UNLOCK OVERLAY ============ -->
+      <div id="pause-screen" class="hidden">
+        <div class="pause-box">
+          <h2>Paused</h2>
+          <p>Click anywhere to return to Sherwood.</p>
+        </div>
+      </div>
+
+      <!-- ============ HUD ============ -->
+      <div id="hud" class="hidden">
+        <div class="crosshair"><div class="crosshair-dot"></div></div>
+
+        <div class="hud-top-left">
+          <div class="hud-stat">
+            <span class="hud-icon">&#10084;&#65039;</span>
+            <div class="bar-track"><div id="health-bar" class="bar-fill health"></div></div>
+          </div>
+          <div class="hud-stat">
+            <span class="hud-icon">&#9889;</span>
+            <div class="bar-track"><div id="stamina-bar" class="bar-fill stamina"></div></div>
+          </div>
+          <div class="hud-stat">
+            <span class="hud-icon">&#127811;</span>
+            <div class="bar-track"><div id="rep-bar" class="bar-fill rep"></div></div>
+            <span id="rep-label" class="hud-substat">Outlaw</span>
+          </div>
+        </div>
+
+        <div class="hud-top-right">
+          <div class="gold-pill"><span class="coin-icon">&#129689;</span><span id="gold-amount">0</span></div>
+        </div>
+
+        <div id="interact-prompt" class="interact-prompt hidden"></div>
+
+        <div id="quest-toast" class="quest-toast hidden"></div>
+
+        <div class="hud-bottom-left" id="inventory-bar"></div>
+
+        <div class="hud-bottom-right">
+          <div class="bow-indicator" id="bow-indicator">
+            <span class="key-badge small">1</span> Longbow <span id="arrow-count">0</span>&#127993;&#65039;
+          </div>
+        </div>
+
+        <div class="compass" id="compass">
+          <div class="compass-strip" id="compass-strip"></div>
+          <div class="compass-marker"></div>
+        </div>
+      </div>
+
+      <!-- ============ SHOP / TRADE MODAL ============ -->
+      <div id="shop-modal" class="hidden">
+        <div class="shop-window">
+          <div class="shop-header">
+            <div>
+              <h2 id="shop-name">Shop Name</h2>
+              <p id="shop-keeper">Merchant</p>
+            </div>
+            <div class="shop-gold">Your Gold: <span id="shop-gold-amount">0</span> <span class="coin-icon">&#129689;</span></div>
+            <button id="shop-close" class="shop-close">&times;</button>
+          </div>
+          <p id="shop-flavor" class="shop-flavor"></p>
+          <div id="shop-items" class="shop-items"></div>
+        </div>
+      </div>
+
+      <!-- ============ TOAST NOTIFICATIONS ============ -->
+      <div id="toast-container"></div>
+    </div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
