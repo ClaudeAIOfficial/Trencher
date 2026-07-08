@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HOODCITY</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Inter:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <div id="hud">
+    <div class="title-wrap">
+      <h1>HOODCITY</h1>
+      <p>First-Person Robin Hood Trading Minigame</p>
+    </div>
+
+    <div id="statusPanel">
+      <p><strong>Controls</strong></p>
+      <ul>
+        <li>Click <em>Enter City</em> to lock your mouse</li>
+        <li>Move with <strong>W A S D</strong></li>
+        <li>Look around with your mouse</li>
+        <li>Press <strong>E</strong> near shops to trade</li>
+      </ul>
+      <p id="locationText">Location: City Gate</p>
+      <p id="coinsText">Coins: 120</p>
+      <p id="tradeHint">Walk to a shop and press E to trade.</p>
+    </div>
+
+    <button id="startButton" type="button">Enter City</button>
+  </div>
+
+  <div id="crosshair" aria-hidden="true">+</div>
+
+  <aside id="tradePanel" class="hidden" aria-live="polite">
+    <div class="trade-header">
+      <h2 id="shopName">Market Stall</h2>
+      <button id="closeTrade" type="button" aria-label="Close trade panel">X</button>
+    </div>
+    <p id="shopDescription">Trade goods with nearby villagers.</p>
+    <div class="trade-grid" id="tradeGrid"></div>
+    <p class="trade-note">Trade by selecting an item below. Balance updates instantly.</p>
+  </aside>
+
+  <script type="module" src="./script.js"></script>
+</body>
+</html>
