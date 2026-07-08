@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HOODCITY — Robin Hood Trading World</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=MedievalSharp&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <div id="loading-screen">
+    <div class="loading-content">
+      <h1 class="logo">HOODCITY</h1>
+      <p class="tagline">Enter the Forest Trade Kingdom</p>
+      <div class="loading-bar"><div class="loading-fill" id="loading-fill"></div></div>
+      <p class="loading-text" id="loading-text">Forging the realm...</p>
+    </div>
+  </div>
+
+  <div id="start-screen" class="hidden">
+    <div class="start-panel">
+      <h1 class="logo">HOODCITY</h1>
+      <p class="subtitle">A Robin Hood Trading Adventure</p>
+      <div class="hero-preview">
+        <div class="hood-icon">🏹</div>
+        <p>Play as a legendary outlaw in first person. Explore realistic medieval shops, trade goods with merchants and fellow travelers, and build your fortune in Sherwood's greatest market town.</p>
+      </div>
+      <button id="play-btn" class="btn-primary">Enter HOODCITY</button>
+      <div class="controls-hint">
+        <span>WASD — Move</span>
+        <span>Mouse — Look</span>
+        <span>E — Trade</span>
+        <span>Tab — Inventory</span>
+        <span>Shift — Sprint</span>
+      </div>
+    </div>
+  </div>
+
+  <div id="hud" class="hidden">
+    <div class="hud-top">
+      <div class="hud-brand">HOODCITY</div>
+      <div class="hud-stats">
+        <div class="stat gold-stat"><span class="stat-icon">🪙</span><span id="gold-amount">100</span></div>
+        <div class="stat health-stat"><span class="stat-icon">❤️</span><span id="health-amount">100</span></div>
+      </div>
+    </div>
+    <div class="crosshair"></div>
+    <div id="interaction-prompt" class="interaction-prompt hidden">
+      <span class="key-hint">E</span>
+      <span id="interaction-text">Trade</span>
+    </div>
+    <div class="hud-bottom">
+      <div class="quick-inventory" id="quick-inventory"></div>
+      <div class="location-name" id="location-name">Sherwood Market Square</div>
+    </div>
+  </div>
+
+  <div id="trade-panel" class="panel hidden">
+    <div class="panel-header">
+      <h2 id="trade-title">Merchant Trade</h2>
+      <button class="panel-close" id="trade-close">✕</button>
+    </div>
+    <div class="trade-body">
+      <div class="trade-column">
+        <h3 id="merchant-name">Merchant</h3>
+        <div class="item-grid" id="merchant-items"></div>
+      </div>
+      <div class="trade-center">
+        <div class="trade-arrow">⇄</div>
+        <p class="trade-hint">Click items to buy or sell</p>
+        <div class="player-gold">Your Gold: <span id="trade-gold">100</span> 🪙</div>
+      </div>
+      <div class="trade-column">
+        <h3>Your Inventory</h3>
+        <div class="item-grid" id="player-items"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="inventory-panel" class="panel hidden">
+    <div class="panel-header">
+      <h2>Outlaw's Satchel</h2>
+      <button class="panel-close" id="inventory-close">✕</button>
+    </div>
+    <div class="inventory-body">
+      <div class="item-grid large" id="full-inventory"></div>
+      <div class="inventory-info">
+        <p>Gold: <strong id="inv-gold">100</strong> 🪙</p>
+        <p class="inv-tip">Visit shops around the square to trade with merchants and travelers.</p>
+      </div>
+    </div>
+  </div>
+
+  <div id="notification-area"></div>
+
+  <canvas id="game-canvas"></canvas>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+    }
+  }
+  </script>
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

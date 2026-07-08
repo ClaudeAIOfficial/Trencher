@@ -1,0 +1,9 @@
+{
+  "name": "hoodcity",
+  "version": "1.0.0",
+  "description": "HOODCITY - A Robin Hood themed first-person trading minigame",
+  "scripts": {
+    "start": "npx --yes serve . -p 3000",
+    "dev": "npx --yes serve . -p 3000"
+  }
+}
