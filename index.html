@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>HOODCITY</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div id="game-root">
+      <header class="brand-banner">
+        <h1>HOODCITY</h1>
+        <p>Robin Hood Minigame - First Person City Trading</p>
+      </header>
+
+      <div id="hud">
+        <div class="hud-card">
+          <span class="label">Coins</span>
+          <span id="coin-count">120</span>
+        </div>
+        <div class="hud-card">
+          <span class="label">Nearby</span>
+          <span id="nearby-shop">Explore the city</span>
+        </div>
+        <div class="hud-card controls">
+          <span>WASD move</span>
+          <span>Mouse look</span>
+          <span>Shift sprint</span>
+          <span>E trade</span>
+        </div>
+      </div>
+
+      <div id="crosshair" aria-hidden="true"></div>
+
+      <div id="shop-panel" class="hidden" role="dialog" aria-modal="true">
+        <div class="panel-header">
+          <h2 id="shop-title">Shop</h2>
+          <button id="close-panel" aria-label="Close shop panel">X</button>
+        </div>
+        <p id="shop-desc"></p>
+        <div class="trade-grid">
+          <section>
+            <h3>Your inventory</h3>
+            <ul id="player-items"></ul>
+          </section>
+          <section>
+            <h3 id="vendor-title">Shop stock</h3>
+            <ul id="vendor-items"></ul>
+          </section>
+        </div>
+        <div class="trade-log" id="trade-log"></div>
+      </div>
+
+      <button id="start-button">Enter HOODCITY</button>
+    </div>
+
+    <script type="module" src="./script.js"></script>
+  </body>
+</html>
