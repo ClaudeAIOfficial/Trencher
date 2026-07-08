@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>HOODCITY - Robin Hood First Person Minigame</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <main class="shell">
+      <section class="hero" aria-labelledby="game-title">
+        <div>
+          <p class="eyebrow">Roblox-inspired first-person trading town</p>
+          <h1 id="game-title">HOODCITY</h1>
+          <p class="tagline">
+            Step into Sherwood as the main character, explore realistic medieval shops, and trade loot with other villagers.
+          </p>
+        </div>
+        <div class="controls-card" aria-label="Game controls">
+          <h2>Controls</h2>
+          <ul>
+            <li><strong>WASD</strong> or arrow keys to move</li>
+            <li><strong>Mouse</strong> or Q/E to look around</li>
+            <li><strong>F</strong> to trade at shops or villagers</li>
+          </ul>
+          <button id="startButton" type="button">Enter HOODCITY</button>
+        </div>
+      </section>
+
+      <section class="game-frame" aria-label="HOODCITY game">
+        <canvas id="gameCanvas" width="1280" height="720">
+          Your browser needs canvas support to play HOODCITY.
+        </canvas>
+
+        <div class="hud top-left">
+          <span class="badge">Main Character</span>
+          <h2>Robin of HOODCITY</h2>
+          <p>Green hood, leather bracers, bow on your back, and a pouch ready for fair trades.</p>
+        </div>
+
+        <div class="hud top-right">
+          <h2>Inventory</h2>
+          <ul id="inventoryList"></ul>
+          <p class="coins"><span id="coinCount">35</span> gold coins</p>
+        </div>
+
+        <div class="crosshair" aria-hidden="true"></div>
+        <div id="prompt" class="prompt">Walk up to a shop or villager to trade.</div>
+
+        <div id="tradePanel" class="trade-panel" aria-live="polite">
+          <button id="closeTrade" class="close-button" type="button" aria-label="Close trade panel">x</button>
+          <p class="eyebrow">Trading Post</p>
+          <h2 id="tradeTitle">Shop</h2>
+          <p id="tradeDescription"></p>
+          <div id="tradeOptions" class="trade-options"></div>
+        </div>
+      </section>
+    </main>
+
+    <script src="game.js"></script>
+  </body>
+</html>
