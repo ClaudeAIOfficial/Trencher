@@ -1,0 +1,1261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HOODCITY – Robin Hood's Trading Village</title>
+<style>
+/* === RESET & BASE === */
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+body { overflow: hidden; background: #0d0800; font-family: 'Georgia', 'Times New Roman', serif; user-select: none; }
+canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; display: block; }
+
+/* === START SCREEN === */
+#start-screen {
+  position: fixed; inset: 0; z-index: 100;
+  background: radial-gradient(ellipse at 50% 60%, #1c1000 0%, #0a0500 55%, #000 100%);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 24px;
+}
+.title-wrap { text-align: center; line-height: 1; }
+.t-hood {
+  font-size: clamp(64px, 11vw, 130px); font-weight: bold; letter-spacing: 0.08em;
+  color: #4cce50;
+  text-shadow: 0 0 18px #2e7d32, 0 0 40px #1b5e20, 3px 3px 0 #0d2e10, 6px 6px 12px #000;
+}
+.t-city {
+  font-size: clamp(64px, 11vw, 130px); font-weight: bold; letter-spacing: 0.08em;
+  color: #FFD700;
+  text-shadow: 0 0 18px #FFA000, 0 0 40px #e65c00, 3px 3px 0 #5d3c00, 6px 6px 12px #000;
+}
+.t-sub {
+  margin-top: 12px; font-size: clamp(13px, 1.8vw, 20px);
+  color: #c8a87d; letter-spacing: 0.35em; text-transform: uppercase;
+  text-shadow: 0 1px 4px #000;
+}
+.enter-btn {
+  background: linear-gradient(135deg, #b87700, #FFD700, #b87700);
+  color: #1a0c02; border: 3px solid #7a5500;
+  padding: 14px 52px; font-size: 22px; font-family: inherit; font-weight: bold;
+  letter-spacing: 0.12em; cursor: pointer; border-radius: 5px;
+  box-shadow: 0 4px 24px rgba(255,200,0,.45), inset 0 1px 0 rgba(255,255,255,.3);
+  transition: transform .15s, box-shadow .15s;
+}
+.enter-btn:hover { transform: scale(1.06); box-shadow: 0 6px 32px rgba(255,200,0,.65); }
+.ctrl-hint { color: #6a5035; font-size: 13px; text-align: center; line-height: 2.0; }
+.ctrl-hint span { color: #c8a87d; }
+.hint-arrow { color: #4cce50; font-size: 11px; margin-top: 4px; display: block; animation: bounce 2s infinite; }
+@keyframes bounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(6px)} }
+
+/* === HUD === */
+#hud { position: fixed; inset: 0; pointer-events: none; display: none; z-index: 10; }
+
+#gold-hud {
+  position: absolute; top: 18px; left: 18px;
+  background: rgba(0,0,0,.72); border: 2px solid #c8860a;
+  border-radius: 8px; padding: 7px 16px;
+  color: #FFD700; font-size: 20px; display: flex; align-items: center; gap: 8px;
+  text-shadow: 0 1px 4px #000;
+}
+#title-hud {
+  position: absolute; top: 18px; left: 50%; transform: translateX(-50%);
+  color: rgba(200,168,125,.6); font-size: 13px; letter-spacing: 0.4em; text-transform: uppercase;
+  text-shadow: 0 1px 3px #000; pointer-events: none;
+}
+#compass {
+  position: absolute; top: 18px; right: 18px;
+  width: 52px; height: 52px;
+  background: rgba(0,0,0,.72); border: 2px solid #4a3a20;
+  border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  color: #c8a87d; font-size: 15px; font-weight: bold; text-shadow: 0 1px 3px #000;
+}
+#crosshair {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+  color: rgba(255,255,255,.85); font-size: 26px; line-height: 1;
+  text-shadow: 0 0 4px #000, 1px 1px 2px #000; pointer-events: none;
+}
+#interact-prompt {
+  position: absolute; top: 58%; left: 50%; transform: translateX(-50%);
+  background: rgba(0,0,0,.78); border: 2px solid #c8860a;
+  border-radius: 8px; padding: 9px 22px;
+  text-align: center; display: none;
+  animation: fadeUp .25s ease;
+}
+#interact-prompt .pname { color: #fff; font-size: 18px; font-weight: bold; display: block; margin-bottom: 3px; }
+#interact-prompt .pkey { color: #FFD700; font-size: 14px; }
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateX(-50%) translateY(8px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+/* Quick bar */
+#quick-bar {
+  position: absolute; bottom: 18px; left: 50%; transform: translateX(-50%);
+  display: flex; gap: 5px;
+}
+.qslot {
+  width: 58px; height: 58px;
+  background: rgba(0,0,0,.72); border: 2px solid #3a2a10;
+  border-radius: 6px; display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  position: relative; overflow: hidden;
+  transition: border-color .2s;
+}
+.qslot.filled { border-color: #7a5a20; }
+.qslot .qi { font-size: 26px; }
+.qslot .ql { position: absolute; bottom: 2px; right: 4px; font-size: 10px; color: #c8a87d; font-weight: bold; }
+
+/* Sprint indicator */
+#sprint-bar {
+  position: absolute; bottom: 82px; left: 50%; transform: translateX(-50%);
+  width: 120px; height: 4px; background: rgba(0,0,0,.5); border-radius: 2px; overflow: hidden;
+}
+#sprint-fill { height: 100%; background: #4cce50; width: 100%; border-radius: 2px; transition: width .1s; }
+
+/* === SHOP MODAL === */
+#shop-modal {
+  position: fixed; inset: 0; z-index: 50;
+  background: rgba(0,0,0,.87);
+  display: none; align-items: center; justify-content: center;
+  pointer-events: all;
+}
+.shop-panel {
+  background: linear-gradient(150deg, #1a0d03, #221505);
+  border: 3px solid #8B6400; border-radius: 12px;
+  width: min(720px, 96vw); max-height: 88vh;
+  overflow-y: auto; overflow-x: hidden;
+  box-shadow: 0 0 80px rgba(200,150,0,.2), 0 0 20px rgba(0,0,0,.8);
+}
+.shop-panel::-webkit-scrollbar { width: 7px; }
+.shop-panel::-webkit-scrollbar-track { background: #120800; }
+.shop-panel::-webkit-scrollbar-thumb { background: #8B6400; border-radius: 4px; }
+
+.shop-hdr {
+  background: linear-gradient(90deg, #3a1e00, #7a5000, #3a1e00);
+  border-bottom: 2px solid #8B6400;
+  border-radius: 9px 9px 0 0;
+  padding: 18px 22px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.shop-hdr-left { display: flex; flex-direction: column; gap: 4px; }
+.shop-hdr-title { color: #FFD700; font-size: 24px; font-weight: bold; text-shadow: 0 2px 6px #000; }
+.shop-hdr-keeper { color: #c8a87d; font-size: 13px; }
+.shop-close {
+  background: none; border: 2px solid #7a5000; color: #c8a87d;
+  width: 34px; height: 34px; border-radius: 50%; font-size: 18px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all .2s;
+}
+.shop-close:hover { background: rgba(255,215,0,.15); color: #FFD700; border-color: #FFD700; }
+
+.shop-body { padding: 18px 20px; }
+
+.gold-row {
+  background: rgba(255,200,0,.08); border: 1px solid #7a5000;
+  border-radius: 6px; padding: 9px 14px; margin-bottom: 14px;
+  color: #FFD700; font-size: 17px; display: flex; align-items: center; gap: 7px;
+}
+.shop-tabs { display: flex; gap: 7px; margin-bottom: 14px; }
+.tab-btn {
+  padding: 7px 22px; background: rgba(0,0,0,.3); border: 2px solid #3a2a10;
+  border-radius: 4px; color: #7a6040; font-family: inherit; font-size: 15px; cursor: pointer;
+  transition: all .18s;
+}
+.tab-btn.active { background: rgba(255,165,0,.18); border-color: #FFD700; color: #FFD700; }
+
+.items-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(195px, 1fr)); gap: 10px; }
+.item-card {
+  background: rgba(0,0,0,.38); border: 2px solid #3a2a10; border-radius: 8px;
+  padding: 13px; cursor: default; transition: all .18s;
+}
+.item-card:hover { border-color: #c8860a; background: rgba(200,134,0,.07); transform: translateY(-2px); }
+.ic-emoji { font-size: 30px; display: block; margin-bottom: 6px; }
+.ic-name { color: #fff; font-size: 14px; font-weight: bold; margin-bottom: 4px; }
+.ic-desc { color: #7a6040; font-size: 11px; margin-bottom: 8px; line-height: 1.45; }
+.ic-price { color: #FFD700; font-size: 15px; font-weight: bold; margin-bottom: 7px; }
+.buy-btn {
+  width: 100%; padding: 6px; border-radius: 4px; cursor: pointer; font-family: inherit; font-size: 13px;
+  background: linear-gradient(90deg, #3a1e00, #7a5000);
+  border: 1px solid #c8860a; color: #FFD700; transition: all .18s;
+}
+.buy-btn:hover:not(:disabled) { background: linear-gradient(90deg, #5a2e00, #a07000); }
+.buy-btn:disabled { opacity: .35; cursor: not-allowed; }
+
+.sell-item {
+  background: rgba(0,0,0,.38); border: 2px solid #3a2a10; border-radius: 8px;
+  padding: 11px 14px; display: flex; align-items: center; gap: 12px; margin-bottom: 8px;
+  transition: border-color .18s;
+}
+.sell-item:hover { border-color: #c8860a; }
+.si-icon { font-size: 26px; flex-shrink: 0; }
+.si-info { flex: 1; }
+.si-name { color: #fff; font-size: 14px; }
+.si-val { color: #c8a87d; font-size: 12px; margin-top: 2px; }
+.sell-btn {
+  padding: 6px 14px; background: rgba(200,134,0,.18); border: 1px solid #c8860a;
+  color: #FFD700; border-radius: 4px; cursor: pointer; font-family: inherit; font-size: 13px;
+  transition: all .18s; flex-shrink: 0;
+}
+.sell-btn:hover { background: rgba(200,134,0,.35); }
+.empty-inv { text-align: center; color: #3a2a10; padding: 36px 20px; font-size: 15px; }
+
+/* === BLOCKER (paused) === */
+#blocker {
+  position: fixed; inset: 0; background: rgba(0,0,0,.72);
+  display: none; align-items: center; justify-content: center; z-index: 60;
+  pointer-events: all;
+}
+#blocker.show { display: flex; }
+.blocker-txt { color: #FFD700; font-size: 28px; text-align: center; text-shadow: 0 2px 8px #000; }
+.blocker-sub { color: #c8a87d; font-size: 16px; margin-top: 8px; }
+
+/* === TOAST === */
+#toast {
+  position: fixed; bottom: 96px; left: 50%; transform: translateX(-50%);
+  background: rgba(0,0,0,.85); border: 2px solid #FFD700; border-radius: 8px;
+  padding: 9px 22px; color: #FFD700; font-size: 15px;
+  z-index: 200; display: none; white-space: nowrap;
+  animation: fadeUp .3s ease;
+}
+
+/* === MINIMAP === */
+#minimap {
+  position: absolute; bottom: 88px; right: 18px;
+  width: 130px; height: 130px;
+  background: rgba(0,0,0,.72); border: 2px solid #4a3a20; border-radius: 50%;
+  overflow: hidden;
+}
+#minimap canvas { width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+
+<!-- ─── START SCREEN ─────────────────────────────────────── -->
+<div id="start-screen">
+  <div class="title-wrap">
+    <div>
+      <span class="t-hood">HOOD</span><span class="t-city">CITY</span>
+    </div>
+    <p class="t-sub">Robin Hood's Trading Village</p>
+  </div>
+
+  <button class="enter-btn" id="start-btn">⚔ ENTER THE VILLAGE ⚔</button>
+
+  <div class="ctrl-hint">
+    <span>WASD</span> Move &nbsp;·&nbsp; <span>Mouse</span> Look &nbsp;·&nbsp; <span>Shift</span> Sprint &nbsp;·&nbsp; <span>Space</span> Jump<br>
+    <span>E</span> Enter shop (when nearby) &nbsp;·&nbsp; <span>Esc</span> Pause
+    <span class="hint-arrow">▼ Click to lock mouse pointer ▼</span>
+  </div>
+</div>
+
+<!-- ─── HUD ──────────────────────────────────────────────── -->
+<div id="hud">
+  <div id="gold-hud">🪙 <span id="gold-amt">100</span> Gold</div>
+  <div id="title-hud">HOODCITY</div>
+  <div id="compass">N</div>
+  <div id="crosshair">+</div>
+  <div id="interact-prompt">
+    <span class="pname" id="prompt-name"></span>
+    <span class="pkey">Press [E] to enter</span>
+  </div>
+  <div id="sprint-bar"><div id="sprint-fill"></div></div>
+  <div id="quick-bar"></div>
+  <div id="minimap"><canvas id="mm-canvas" width="130" height="130"></canvas></div>
+</div>
+
+<!-- ─── SHOP MODAL ──────────────────────────────────────── -->
+<div id="shop-modal">
+  <div class="shop-panel">
+    <div class="shop-hdr">
+      <div class="shop-hdr-left">
+        <div class="shop-hdr-title" id="sh-title"></div>
+        <div class="shop-hdr-keeper" id="sh-keeper"></div>
+      </div>
+      <button class="shop-close" id="shop-close-btn">✕</button>
+    </div>
+    <div class="shop-body">
+      <div class="gold-row">🪙 You have <strong id="sh-gold">&nbsp;</strong>&nbsp;gold</div>
+      <div class="shop-tabs">
+        <button class="tab-btn active" id="tab-buy" onclick="switchTab('buy')">🛒 Buy</button>
+        <button class="tab-btn" id="tab-sell" onclick="switchTab('sell')">💰 Sell</button>
+      </div>
+      <div id="sh-items"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ─── PAUSED BLOCKER ───────────────────────────────────── -->
+<div id="blocker">
+  <div class="blocker-txt">
+    Click anywhere to resume
+    <div class="blocker-sub">Press Esc during play to pause</div>
+  </div>
+</div>
+
+<!-- ─── TOAST ────────────────────────────────────────────── -->
+<div id="toast"></div>
+
+<!-- ─── THREE.JS ─────────────────────────────────────────── -->
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
+
+// ════════════════════════════════════════════════════════════
+// RENDERER + SCENE
+// ════════════════════════════════════════════════════════════
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 0.88;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x7ec8e3);
+scene.fog = new THREE.FogExp2(0x9abfa0, 0.018);
+
+const camera = new THREE.PerspectiveCamera(72, window.innerWidth / window.innerHeight, 0.1, 600);
+camera.position.set(0, 1.75, 16);
+scene.add(camera);
+
+// ════════════════════════════════════════════════════════════
+// LIGHTING
+// ════════════════════════════════════════════════════════════
+scene.add(new THREE.AmbientLight(0xffe8c0, 0.45));
+
+const sun = new THREE.DirectionalLight(0xfff0c0, 1.6);
+sun.position.set(60, 90, 40);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.near = 1;
+sun.shadow.camera.far = 250;
+sun.shadow.camera.left  = -70;
+sun.shadow.camera.right =  70;
+sun.shadow.camera.top   =  70;
+sun.shadow.camera.bottom = -70;
+sun.shadow.bias = -0.001;
+scene.add(sun);
+
+scene.add(new THREE.HemisphereLight(0x8fd4ff, 0x4a8040, 0.55));
+
+// ════════════════════════════════════════════════════════════
+// MATERIALS
+// ════════════════════════════════════════════════════════════
+const M = {
+  stone:      new THREE.MeshLambertMaterial({ color: 0x9e8e7a }),
+  stoneDk:    new THREE.MeshLambertMaterial({ color: 0x6b5d52 }),
+  stoneLt:    new THREE.MeshLambertMaterial({ color: 0xc4b49a }),
+  wood:       new THREE.MeshLambertMaterial({ color: 0x7d4e2a }),
+  woodDk:     new THREE.MeshLambertMaterial({ color: 0x4a2e10 }),
+  woodLt:     new THREE.MeshLambertMaterial({ color: 0xa0693a }),
+  plaster:    new THREE.MeshLambertMaterial({ color: 0xdfd0a8 }),
+  thatch:     new THREE.MeshLambertMaterial({ color: 0xd2a55a }),
+  thatchDk:   new THREE.MeshLambertMaterial({ color: 0x9a7030 }),
+  slate:      new THREE.MeshLambertMaterial({ color: 0x4a5a6a }),
+  redRoof:    new THREE.MeshLambertMaterial({ color: 0x8b2020 }),
+  greenCl:    new THREE.MeshLambertMaterial({ color: 0x2e6a2e }),
+  darkGray:   new THREE.MeshLambertMaterial({ color: 0x2a2a2a }),
+  grass:      new THREE.MeshLambertMaterial({ color: 0x3a7428 }),
+  cobble:     new THREE.MeshLambertMaterial({ color: 0x8a8070 }),
+  cobbleDk:   new THREE.MeshLambertMaterial({ color: 0x666058 }),
+  door:       new THREE.MeshLambertMaterial({ color: 0x3c2010 }),
+  winFrame:   new THREE.MeshLambertMaterial({ color: 0x2a1a08 }),
+  glass:      new THREE.MeshPhongMaterial  ({ color: 0x78aec8, shininess: 70, transparent: true, opacity: 0.65 }),
+  iron:       new THREE.MeshPhongMaterial  ({ color: 0x888888, shininess: 70 }),
+  gold:       new THREE.MeshPhongMaterial  ({ color: 0xFFD700, shininess: 110 }),
+  water:      new THREE.MeshPhongMaterial  ({ color: 0x2255aa, shininess: 50, transparent: true, opacity: 0.75 }),
+  bark:       new THREE.MeshLambertMaterial({ color: 0x4a3218 }),
+  leaves:     new THREE.MeshLambertMaterial({ color: 0x2e6b2e }),
+  leavesDk:   new THREE.MeshLambertMaterial({ color: 0x1a4a1a }),
+  brick:      new THREE.MeshLambertMaterial({ color: 0xa05030 }),
+  purpleCl:   new THREE.MeshLambertMaterial({ color: 0x5a1a8b }),
+  redCl:      new THREE.MeshLambertMaterial({ color: 0x8b2020 }),
+  blueCl:     new THREE.MeshLambertMaterial({ color: 0x1a3a8b }),
+  flame:      new THREE.MeshStandardMaterial({ color: 0xff6600, emissive: 0xff4400, emissiveIntensity: 2.0 }),
+  soil:       new THREE.MeshLambertMaterial({ color: 0x5a3c1a }),
+};
+
+// ════════════════════════════════════════════════════════════
+// GEOMETRY HELPERS
+// ════════════════════════════════════════════════════════════
+function box(w, h, d, mat) {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+  m.castShadow = true; m.receiveShadow = true;
+  return m;
+}
+function cyl(rt, rb, h, seg, mat) {
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, h, seg), mat);
+  m.castShadow = true; m.receiveShadow = true;
+  return m;
+}
+function cone(r, h, seg, mat) {
+  const m = new THREE.Mesh(new THREE.ConeGeometry(r, h, seg), mat);
+  m.castShadow = true; return m;
+}
+function sphere(r, wSeg, hSeg, mat) {
+  const m = new THREE.Mesh(new THREE.SphereGeometry(r, wSeg, hSeg), mat);
+  m.castShadow = true; return m;
+}
+
+// ════════════════════════════════════════════════════════════
+// GABLE ROOF (triangular prism via ExtrudeGeometry)
+// ════════════════════════════════════════════════════════════
+function gableRoof(w, d, h, mat) {
+  const ov = 0.42;
+  const shape = new THREE.Shape();
+  shape.moveTo(-(w / 2 + ov), 0);
+  shape.lineTo( (w / 2 + ov), 0);
+  shape.lineTo(0, h);
+  shape.closePath();
+  const geo = new THREE.ExtrudeGeometry(shape, { depth: d + ov * 2, bevelEnabled: false });
+  geo.translate(0, 0, -(d / 2 + ov));
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.castShadow = true;
+  return mesh;
+}
+
+// ════════════════════════════════════════════════════════════
+// SIGN MAKER (canvas texture)
+// ════════════════════════════════════════════════════════════
+function makeSign(lines, bgHex) {
+  const cv = document.createElement('canvas');
+  cv.width = 256; cv.height = 100;
+  const ctx = cv.getContext('2d');
+  ctx.fillStyle = bgHex || '#7a5000';
+  ctx.fillRect(0, 0, 256, 100);
+  ctx.strokeStyle = '#2a1000';
+  ctx.lineWidth = 5;
+  ctx.strokeRect(3, 3, 250, 94);
+  ctx.fillStyle = '#fff8e0';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  const lh = 100 / (lines.length + 1);
+  lines.forEach((l, i) => {
+    ctx.font = `bold ${lines.length > 1 ? 18 : 22}px Georgia`;
+    ctx.fillText(l, 128, (i + 1) * lh);
+  });
+  const tex = new THREE.CanvasTexture(cv);
+  const g = new THREE.Group();
+  const board = box(2.0, 0.8, 0.1, new THREE.MeshLambertMaterial({ map: tex }));
+  g.add(board);
+  // Hanging bars
+  [-0.8, 0.8].forEach(sx => {
+    const bar = box(0.05, 0.35, 0.05, M.woodDk);
+    bar.position.set(sx, 0.57, 0);
+    g.add(bar);
+  });
+  return g;
+}
+
+// ════════════════════════════════════════════════════════════
+// WINDOW UNIT
+// ════════════════════════════════════════════════════════════
+function makeWindow() {
+  const g = new THREE.Group();
+  g.add(box(0.92, 1.05, 0.14, M.winFrame));       // outer frame
+  const gl = box(0.72, 0.82, 0.06, M.glass); gl.position.z = 0.05; g.add(gl);
+  const h = box(0.74, 0.07, 0.14, M.winFrame); g.add(h);
+  const v = box(0.07, 0.84, 0.14, M.winFrame); g.add(v);
+  return g;
+}
+
+// ════════════════════════════════════════════════════════════
+// DOOR UNIT
+// ════════════════════════════════════════════════════════════
+function makeDoor(w, h) {
+  const g = new THREE.Group();
+  g.add(box(w + 0.22, h + 0.14, 0.16, M.woodDk)); // frame
+  const panel = box(w - 0.08, h - 0.08, 0.09, M.door); panel.position.z = 0.05; g.add(panel);
+  const knob = sphere(0.055, 6, 6, M.gold); knob.position.set(w / 2 - 0.14, -0.08, 0.14); g.add(knob);
+  return g;
+}
+
+// ════════════════════════════════════════════════════════════
+// BARREL & CRATE PROPS
+// ════════════════════════════════════════════════════════════
+function makeBarrel(mat) {
+  const g = new THREE.Group();
+  const body = cyl(0.31, 0.28, 0.72, 12, mat || M.woodDk); g.add(body);
+  [-0.22, 0, 0.22].forEach(y => {
+    const h = new THREE.Mesh(new THREE.TorusGeometry(0.32, 0.028, 6, 18), M.iron);
+    h.rotation.x = Math.PI / 2; h.position.y = y; g.add(h);
+  });
+  return g;
+}
+function makeCrate() {
+  const g = new THREE.Group();
+  g.add(box(0.72, 0.72, 0.72, M.woodLt));
+  // slats
+  [0, Math.PI / 2].forEach(ry => {
+    [-0.28, 0, 0.28].forEach(y => {
+      const s = box(0.74, 0.09, 0.74, M.woodDk); s.rotation.y = ry; s.position.y = y; g.add(s);
+    });
+  });
+  return g;
+}
+
+// ════════════════════════════════════════════════════════════
+// BUILDING FACTORY
+// ════════════════════════════════════════════════════════════
+function createBuilding(cfg) {
+  const g = new THREE.Group();
+  const { w, d, wallH, roofH, wallMat, roofMat, sign, signBg, stories = 1, hasChimney = false } = cfg;
+
+  // Foundation
+  const found = box(w + 0.28, 0.38, d + 0.28, M.stoneDk);
+  found.position.y = 0.19; g.add(found);
+
+  // Ground floor
+  const gfh = stories === 1 ? wallH : wallH * 0.52;
+  const gf = box(w, gfh, d, wallMat);
+  gf.position.y = 0.38 + gfh / 2; g.add(gf);
+
+  let topY = 0.38 + gfh;
+
+  // Upper floor with timber framing
+  if (stories >= 2) {
+    const ufh = wallH - gfh;
+    const uf = box(w + 0.28, ufh, d + 0.28, M.plaster);
+    uf.position.y = topY + ufh / 2; g.add(uf);
+    // Horizontal timber
+    const beamFront = box(w + 0.35, 0.14, 0.09, M.woodDk);
+    beamFront.position.set(0, topY + 0.07, (d + 0.28) / 2 + 0.05); g.add(beamFront);
+    const beamBack = beamFront.clone(); beamBack.position.z = -((d + 0.28) / 2 + 0.05); g.add(beamBack);
+    // Vertical timbers
+    for (let bx = -(w + 0.2) / 2; bx <= (w + 0.2) / 2 + 0.01; bx += (w + 0.2) / 3) {
+      const vb = box(0.1, ufh, 0.09, M.woodDk); vb.position.set(bx, topY + ufh / 2, (d + 0.28) / 2 + 0.05); g.add(vb);
+      const vbB = vb.clone(); vbB.position.z = -((d + 0.28) / 2 + 0.05); g.add(vbB);
+    }
+    topY += ufh;
+  }
+
+  // Eave beam
+  const eaveF = box(w + 1.0, 0.16, 0.13, M.woodDk);
+  eaveF.position.set(0, topY - 0.05, d / 2 + 0.48); g.add(eaveF);
+  const eaveB = eaveF.clone(); eaveB.position.z = -(d / 2 + 0.48); g.add(eaveB);
+
+  // Roof
+  const roof = gableRoof(w, d, roofH, roofMat);
+  roof.position.y = topY; g.add(roof);
+
+  // Ridge beam
+  const ridge = box(0.15, 0.16, d + 1.0, M.woodDk);
+  ridge.position.y = topY + roofH + 0.07; g.add(ridge);
+
+  // Chimney
+  if (hasChimney) {
+    const cx = w * 0.25, cBase = topY + roofH * 0.28, chH = roofH * 1.6;
+    const ch = box(0.52, chH, 0.52, M.brick); ch.position.set(cx, cBase + chH / 2, 0); g.add(ch);
+    const cap = box(0.68, 0.16, 0.68, M.stoneDk); cap.position.set(cx, cBase + chH + 0.08, 0); g.add(cap);
+  }
+
+  // Door (on +Z face)
+  const dr = makeDoor(0.92, 2.05);
+  dr.position.set(0, 0.38 + 1.025 + 0.07, d / 2 + 0.08); g.add(dr);
+  // Step
+  const step = box(1.5, 0.17, 0.54, M.stoneDk);
+  step.position.set(0, 0.085, d / 2 + 0.38); g.add(step);
+
+  // Windows – front face
+  const winY = 0.38 + gfh * 0.58;
+  const wfOff = w / 2 - 0.9;
+  [-wfOff, wfOff].forEach(wx => {
+    const win = makeWindow(); win.position.set(wx, winY, d / 2 + 0.07); g.add(win);
+  });
+  // Side windows
+  const wsZ = d / 2 - 0.9;
+  [-wsZ, wsZ].forEach(wz => {
+    const win = makeWindow(); win.rotation.y = Math.PI / 2; win.position.set(w / 2 + 0.07, winY, wz); g.add(win);
+  });
+  // Upper floor windows (if 2-story)
+  if (stories >= 2) {
+    const uWinY = 0.38 + wallH * 0.78;
+    [-wfOff, wfOff].forEach(wx => {
+      const win = makeWindow(); win.position.set(wx, uWinY, (d + 0.28) / 2 + 0.08); g.add(win);
+    });
+  }
+
+  // Wall trim / base
+  const trim = box(w + 0.01, 0.14, d + 0.01, M.stoneDk);
+  trim.position.y = 0.38 + gfh + 0.07; g.add(trim);
+
+  // Sign
+  if (sign) {
+    const sg = makeSign(sign, signBg);
+    sg.position.set(0, 0.38 + gfh - 0.8, d / 2 + 0.56);
+    g.add(sg);
+  }
+
+  return g;
+}
+
+// ════════════════════════════════════════════════════════════
+// WELL
+// ════════════════════════════════════════════════════════════
+function createWell() {
+  const g = new THREE.Group();
+  const base = cyl(1.15, 1.25, 0.65, 16, M.stone); base.position.y = 0.325; g.add(base);
+  const inner = cyl(0.72, 0.72, 0.82, 16, M.stoneDk); inner.position.y = 0.38; g.add(inner);
+  const water = new THREE.Mesh(new THREE.CircleGeometry(0.7, 16), M.water);
+  water.rotation.x = -Math.PI / 2; water.position.y = -0.12; g.add(water);
+  // Posts
+  [-0.82, 0.82].forEach(px => {
+    const post = box(0.13, 2.4, 0.13, M.woodDk); post.position.set(px, 1.2 + 0.65, 0); g.add(post);
+  });
+  const beam = box(1.76, 0.15, 0.15, M.woodDk); beam.position.y = 2.5 + 0.65; g.add(beam);
+  const winch = cyl(0.09, 0.09, 1.5, 8, M.iron); winch.rotation.z = Math.PI / 2; winch.position.y = 2.5 + 0.65; g.add(winch);
+  const rope = box(0.045, 1.5, 0.045, M.wood); rope.position.set(0.02, 1.75 + 0.65, 0); g.add(rope);
+  const bucket = cyl(0.16, 0.13, 0.32, 10, M.wood); bucket.position.set(0.02, 0.95 + 0.65, 0); g.add(bucket);
+  const roof = gableRoof(2.0, 0.5, 1.1, M.thatch); roof.position.y = 2.66 + 0.65; g.add(roof);
+  g.position.y = 0;
+  return g;
+}
+
+// ════════════════════════════════════════════════════════════
+// TREE
+// ════════════════════════════════════════════════════════════
+function createTree(x, z, h) {
+  const g = new THREE.Group();
+  const trH = h * 0.44;
+  const tr = cyl(0.18, 0.26, trH, 7, M.bark); tr.position.y = trH / 2; g.add(tr);
+  for (let i = 0; i < 3; i++) {
+    const r = (h * 0.38) - i * 0.45;
+    const layer = cone(r, h * 0.4, 8, i % 2 === 0 ? M.leaves : M.leavesDk);
+    layer.position.y = trH + i * h * 0.17; g.add(layer);
+  }
+  g.position.set(x, 0, z);
+  return g;
+}
+
+// ════════════════════════════════════════════════════════════
+// LANTERN POST
+// ════════════════════════════════════════════════════════════
+const lanternLights = [];
+function createLanternPost(x, z) {
+  const g = new THREE.Group();
+  const pH = 3.6;
+  const post = cyl(0.07, 0.09, pH, 8, M.iron); post.position.y = pH / 2; g.add(post);
+  const arm = box(0.62, 0.07, 0.07, M.iron); arm.position.set(0.31, pH, 0); g.add(arm);
+  const housing = box(0.28, 0.38, 0.28, M.iron); housing.position.set(0.62, pH - 0.1, 0); g.add(housing);
+  const fl = sphere(0.085, 7, 7, M.flame); fl.position.set(0.62, pH - 0.1, 0); g.add(fl);
+  const pl = new THREE.PointLight(0xff8800, 1.6, 11); pl.position.set(0.62, pH - 0.1, 0); g.add(pl);
+  lanternLights.push(pl);
+  g.position.set(x, 0, z);
+  return g;
+}
+
+// ════════════════════════════════════════════════════════════
+// NPC (simplified character)
+// ════════════════════════════════════════════════════════════
+function createNPC(bodyColor) {
+  const g = new THREE.Group();
+  const bMat = new THREE.MeshLambertMaterial({ color: bodyColor });
+  const sMat = new THREE.MeshLambertMaterial({ color: 0xffddcc });
+  const bd = box(0.52, 0.85, 0.32, bMat); bd.position.y = 0.95; g.add(bd);
+  const head = sphere(0.26, 8, 8, sMat); head.position.y = 1.7; g.add(head);
+  [-0.16, 0.16].forEach(lx => { const leg = box(0.2, 0.52, 0.22, bMat); leg.position.set(lx, 0.26, 0); g.add(leg); });
+  [-0.37, 0.37].forEach(ax => { const arm = box(0.18, 0.52, 0.18, bMat); arm.position.set(ax, 1.04, 0); g.add(arm); });
+  return g;
+}
+
+// ════════════════════════════════════════════════════════════
+// PALISADE WALL
+// ════════════════════════════════════════════════════════════
+function createPalisade() {
+  const g = new THREE.Group();
+  const r = 42;
+  const N = 130;
+  const gapAngle = 0.18; // gap for gates
+  for (let i = 0; i < N; i++) {
+    const a = (i / N) * Math.PI * 2;
+    // Gaps at N/S/E/W
+    if (Math.abs(a % (Math.PI / 2)) < gapAngle) continue;
+    const px = Math.cos(a) * r, pz = Math.sin(a) * r;
+    const h = 2.6 + (Math.random() > 0.5 ? 0.3 : 0);
+    const post = cyl(0.12, 0.15, h, 5, M.woodDk); post.position.set(px, h / 2, pz); g.add(post);
+  }
+  return g;
+}
+
+// ════════════════════════════════════════════════════════════
+// SHOP DATA
+// ════════════════════════════════════════════════════════════
+const SHOPS = [
+  {
+    id: 'fletcher',
+    name: 'The Fletching Post',
+    keeper: 'Old Tom Fletcher',
+    emoji: '🏹',
+    items: [
+      { id: 'shortbow',   name: 'Short Bow',       emoji: '🏹', desc: 'A sturdy short bow. Quick to draw.',                 price:  50, sell: 22 },
+      { id: 'longbow',    name: 'Long Bow',         emoji: '🏹', desc: "Robin's preferred weapon. Deadly range.",           price: 150, sell: 68 },
+      { id: 'arrows',     name: 'Arrow Bundle',     emoji: '🪃', desc: '20 hand-crafted arrows.',                           price:  10, sell:  4 },
+      { id: 'quiver',     name: 'Leather Quiver',   emoji: '🪣', desc: 'Holds 40 arrows. Supple forest leather.',           price:  30, sell: 12 },
+      { id: 'silverarr',  name: 'Silver Arrow',     emoji: '✨', desc: 'The legendary prize. Priceless craftsmanship.',    price: 220, sell:160 },
+    ]
+  },
+  {
+    id: 'forge',
+    name: "Locksley's Forge",
+    keeper: 'Will Scarlet the Smith',
+    emoji: '⚒️',
+    items: [
+      { id: 'dagger',    name: 'Iron Dagger',  emoji: '🗡️', desc: 'Small and deadly. Easy to conceal.',       price:  35, sell: 14 },
+      { id: 'sword',     name: 'Short Sword',  emoji: '⚔️', desc: 'A reliable blade for close quarters.',     price:  85, sell: 38 },
+      { id: 'longsword', name: 'Long Sword',   emoji: '⚔️', desc: 'Two-handed blade of Sherwood steel.',      price: 210, sell: 95 },
+      { id: 'shield',    name: 'Round Shield', emoji: '🛡️', desc: 'Iron-bossed shield. Trusty protection.',   price: 125, sell: 55 },
+      { id: 'chainmail', name: 'Chain Mail',   emoji: '🔗', desc: 'Linked iron rings. Deflects arrows well.', price: 310, sell:140 },
+    ]
+  },
+  {
+    id: 'tavern',
+    name: 'The Merry Barrel',
+    keeper: 'Friar Tuck',
+    emoji: '🍺',
+    items: [
+      { id: 'bread',  name: 'Peasant Bread',     emoji: '🍞', desc: 'Hearty loaf baked fresh this morning.',       price:  5, sell:  1 },
+      { id: 'venison',name: 'Roast Venison',      emoji: '🍖', desc: "Robin's favourite — from the King's forest.", price: 18, sell:  6 },
+      { id: 'ale',    name: 'Sherwood Ale',       emoji: '🍺', desc: 'Dark and rich. Gives temporary courage.',     price:  9, sell:  2 },
+      { id: 'pie',    name: 'Forest Berry Pie',   emoji: '🥧', desc: 'Sweet, filling and fully restoring.',         price: 24, sell:  9 },
+      { id: 'wine',   name: 'Nottingham Wine',    emoji: '🍷', desc: 'Liberated from the Sheriff. Finest quality.', price: 45, sell: 22 },
+    ]
+  },
+  {
+    id: 'market',
+    name: "Friar's Market",
+    keeper: "Much the Miller's Son",
+    emoji: '🏪',
+    items: [
+      { id: 'rope',     name: 'Hemp Rope',      emoji: '🪢', desc: '10 metres of strong climbing rope.',         price: 12, sell:  5 },
+      { id: 'torch',    name: 'Wax Torch',       emoji: '🔦', desc: 'Lights the forest paths at night.',          price:  8, sell:  3 },
+      { id: 'lockpick', name: 'Lockpick Set',    emoji: '🗝️', desc: "Opens any lock in Nottingham Castle.",       price: 50, sell: 22 },
+      { id: 'map',      name: 'Sherwood Map',    emoji: '🗺️', desc: 'Marks all hideouts and forest paths.',       price: 35, sell: 14 },
+      { id: 'pouch',    name: 'Gold Pouch',      emoji: '💰', desc: 'A full pouch — found in a merchant wagon!',  price: 80, sell: 38 },
+    ]
+  },
+  {
+    id: 'apothecary',
+    name: 'Greenwood Apothecary',
+    keeper: 'Maid Marian',
+    emoji: '🧪',
+    items: [
+      { id: 'hpot',    name: 'Health Potion',   emoji: '❤️', desc: 'Instantly restores full health.',            price:  32, sell: 14 },
+      { id: 'spoot',   name: 'Speed Potion',    emoji: '💨', desc: 'Run like the wind for a short time.',        price:  44, sell: 20 },
+      { id: 'stpot',   name: 'Stealth Brew',    emoji: '🌑', desc: 'Become invisible to Sheriff\'s guards.',     price:  65, sell: 30 },
+      { id: 'anti',    name: 'Forest Antidote', emoji: '🌿', desc: 'Cures all poisons and ailments.',            price:  22, sell:  9 },
+      { id: 'herb',    name: 'Mystic Herb',     emoji: '🌱', desc: 'Rare ingredient. Greatly valued.',           price: 110, sell: 78 },
+    ]
+  },
+  {
+    id: 'sheriff',
+    name: "Sheriff's Treasury",
+    keeper: "The Sheriff's Guard",
+    emoji: '⚜️',
+    items: [
+      { id: 'pardon',  name: 'Royal Pardon',     emoji: '📜', desc: 'Clears all your crimes. Very expensive.',    price: 500, sell:100 },
+      { id: 'bounty',  name: 'Bounty Contract',  emoji: '📋', desc: 'Earn gold by capturing other outlaws.',      price: 120, sell: 22 },
+      { id: 'badge',   name: "Sheriff's Badge",  emoji: '⭐', desc: 'Walk freely through Nottingham.',            price: 260, sell: 52 },
+      { id: 'treasure',name: 'Stolen Treasure',  emoji: '💎', desc: 'Looted from innocent peasants. Worth much.', price: 420, sell:210 },
+    ]
+  },
+];
+
+// ════════════════════════════════════════════════════════════
+// BUILDING PLACEMENT CONFIGS
+// rotation.y: building's LOCAL +Z faces the town center
+// ════════════════════════════════════════════════════════════
+const BLDG_CFGS = [
+  {
+    shopId: 'fletcher', pos: [-8, 0, -8], rot: Math.PI / 4,
+    cfg: { w: 6.2, d: 5.0, wallH: 3.6, roofH: 2.0, wallMat: M.wood,   roofMat: M.thatch,   stories: 1,
+           sign: ['The Fletching Post','🏹 Bows & Arrows'], signBg: '#2a4a18' }
+  },
+  {
+    shopId: 'forge', pos: [8, 0, -8], rot: -Math.PI / 4,
+    cfg: { w: 7.0, d: 5.5, wallH: 4.0, roofH: 2.2, wallMat: M.stone,  roofMat: M.slate,    stories: 1, hasChimney: true,
+           sign: ["Locksley's Forge",'⚒️ Weapons & Armor'], signBg: '#4a1a08' }
+  },
+  {
+    shopId: 'tavern', pos: [-9.5, 0, 0], rot: Math.PI / 2,
+    cfg: { w: 8.5, d: 7.0, wallH: 5.8, roofH: 2.6, wallMat: M.plaster,roofMat: M.thatchDk, stories: 2, hasChimney: true,
+           sign: ['The Merry Barrel','🍺 Food & Drink'], signBg: '#3a1a00' }
+  },
+  {
+    shopId: 'market', pos: [9.5, 0, 0], rot: -Math.PI / 2,
+    cfg: { w: 7.5, d: 6.0, wallH: 3.8, roofH: 2.0, wallMat: M.woodLt, roofMat: M.greenCl,  stories: 1,
+           sign: ["Friar's Market",'🏪 General Goods'], signBg: '#1a3a0a' }
+  },
+  {
+    shopId: 'apothecary', pos: [-8, 0, 8], rot: 3 * Math.PI / 4,
+    cfg: { w: 5.8, d: 5.2, wallH: 4.2, roofH: 2.8, wallMat: M.stoneDk,roofMat: M.slate,    stories: 1,
+           sign: ['Greenwood','Apothecary 🧪'], signBg: '#180832' }
+  },
+  {
+    shopId: 'sheriff', pos: [8, 0, 8], rot: -3 * Math.PI / 4,
+    cfg: { w: 7.2, d: 6.2, wallH: 4.6, roofH: 2.2, wallMat: M.stone,  roofMat: M.darkGray, stories: 1,
+           sign: ["Sheriff's Treasury",'⚜️ Rare Goods'], signBg: '#1a0000' }
+  },
+];
+
+// Building colliders stored for collision + interaction
+const colliders = [];
+
+// ════════════════════════════════════════════════════════════
+// WORLD BUILDER
+// ════════════════════════════════════════════════════════════
+function buildWorld() {
+  // Ground
+  const gnd = new THREE.Mesh(new THREE.PlaneGeometry(250, 250), M.grass);
+  gnd.rotation.x = -Math.PI / 2; gnd.receiveShadow = true; scene.add(gnd);
+
+  // Soil patches around buildings
+  for (const bc of BLDG_CFGS) {
+    const patch = new THREE.Mesh(new THREE.CircleGeometry(5.5, 16), M.soil);
+    patch.rotation.x = -Math.PI / 2; patch.position.set(bc.pos[0], 0.005, bc.pos[2]); scene.add(patch);
+  }
+
+  // Cobblestone square
+  const sq = new THREE.Mesh(new THREE.PlaneGeometry(26, 26), M.cobble);
+  sq.rotation.x = -Math.PI / 2; sq.position.y = 0.01; sq.receiveShadow = true; scene.add(sq);
+
+  // Cobble border stones
+  for (let i = -12; i <= 12; i += 3.5) {
+    [[-13, i], [13, i], [i, -13], [i, 13]].forEach(([px, pz]) => {
+      const bs = box(0.45, 0.14, 0.9, M.stoneDk); bs.position.set(px, 0.07, pz); scene.add(bs);
+    });
+  }
+
+  // Paths N/S
+  [[-1, 1]].forEach(() => {
+    for (const sz of [-1, 1]) {
+      const p = new THREE.Mesh(new THREE.PlaneGeometry(5, 18), M.cobbleDk);
+      p.rotation.x = -Math.PI / 2; p.position.set(0, 0.012, sz * 22); p.receiveShadow = true; scene.add(p);
+    }
+    for (const sx of [-1, 1]) {
+      const p = new THREE.Mesh(new THREE.PlaneGeometry(18, 5), M.cobbleDk);
+      p.rotation.x = -Math.PI / 2; p.position.set(sx * 22, 0.012, 0); p.receiveShadow = true; scene.add(p);
+    }
+  });
+
+  // Well
+  scene.add(createWell());
+
+  // Lantern posts at square corners & mid-edges
+  [[-11, -11], [11, -11], [-11, 11], [11, 11], [0, -14], [0, 14], [-14, 0], [14, 0]].forEach(([lx, lz]) => {
+    scene.add(createLanternPost(lx, lz));
+  });
+
+  // Buildings + props
+  const npcColors = [0x2e6a2e, 0x8b2020, 0x7d4e2a, 0x3a5a0a, 0x5a1a8b, 0x1a1a1a];
+  BLDG_CFGS.forEach((bc, i) => {
+    const bldg = createBuilding(bc.cfg);
+    bldg.position.set(bc.pos[0], bc.pos[1], bc.pos[2]);
+    bldg.rotation.y = bc.rot;
+    scene.add(bldg);
+
+    // Collision circle (centered on building pos, radius = max half-extent + margin)
+    const r = Math.max(bc.cfg.w, bc.cfg.d) / 2 + 0.8;
+    colliders.push({ cx: bc.pos[0], cz: bc.pos[2], r, shopId: bc.shopId, interactR: r + 2.8 });
+
+    // Props clustered near each building
+    const [bx, , bz] = bc.pos;
+    const barrel1 = makeBarrel(); barrel1.position.set(bx + 1.2, 0.36, bz + 1.2); scene.add(barrel1);
+    const barrel2 = makeBarrel(); barrel2.position.set(bx + 1.2, 0.36, bz + 0.3); scene.add(barrel2);
+    const crate1 = makeCrate();   crate1.position.set(bx - 1.3, 0.36, bz + 1.0); scene.add(crate1);
+
+    // NPC
+    const npc = createNPC(npcColors[i]);
+    // Place NPC at the door side of the building (door is on local +Z, which after rotation is toward center)
+    const doorDir = new THREE.Vector3(Math.sin(bc.rot), 0, Math.cos(bc.rot));
+    const npcPos = new THREE.Vector3(bx, 0, bz).add(doorDir.clone().multiplyScalar(bc.cfg.d / 2 + 0.9));
+    npc.position.copy(npcPos);
+    // Face away from building (toward player area)
+    npc.rotation.y = bc.rot + Math.PI;
+    scene.add(npc);
+  });
+
+  // Trees
+  const treeRings = [
+    { count: 30, rMin: 18, rMax: 28, hMin: 4, hMax: 8 },
+    { count: 20, rMin: 30, rMax: 40, hMin: 5, hMax: 10 },
+  ];
+  for (const ring of treeRings) {
+    for (let i = 0; i < ring.count; i++) {
+      const a = (i / ring.count) * Math.PI * 2 + Math.random() * 0.15;
+      const r = ring.rMin + Math.random() * (ring.rMax - ring.rMin);
+      const tx = Math.cos(a) * r, tz = Math.sin(a) * r;
+      if (Math.abs(tx) < 15 && Math.abs(tz) < 15) continue;
+      const h = ring.hMin + Math.random() * (ring.hMax - ring.hMin);
+      scene.add(createTree(tx, tz, h));
+    }
+  }
+
+  // Palisade
+  scene.add(createPalisade());
+
+  // Hay bales
+  for (let i = 0; i < 10; i++) {
+    const a = (i / 10) * Math.PI * 2;
+    const r = 14.5 + Math.random();
+    const hb = cyl(0.52, 0.52, 0.82, 10, M.thatch);
+    hb.rotation.z = Math.PI / 2; hb.position.set(Math.cos(a) * r, 0.41, Math.sin(a) * r); scene.add(hb);
+  }
+
+  // Banners on tall poles at palisade entrance
+  for (const [bx, bz] of [[-2.5, -42], [2.5, -42]]) {
+    const pole = cyl(0.1, 0.12, 6, 8, M.woodDk); pole.position.set(bx, 3, bz); scene.add(pole);
+    const flag = box(0.06, 1.4, 1.0, M.greenCl); flag.position.set(bx, 5.5, bz + 0.5); scene.add(flag);
+  }
+}
+
+// ════════════════════════════════════════════════════════════
+// PLAYER / CONTROLS
+// ════════════════════════════════════════════════════════════
+const controls = new PointerLockControls(camera, renderer.domElement);
+
+let mvF = false, mvB = false, mvL = false, mvR = false, sprint = false;
+const vel = new THREE.Vector3();
+const SPEED = 8.0, SPRINT = 1.85, PLAYER_H = 1.75, GRAVITY = 22;
+let canJump = true;
+let sprintStam = 1.0; // 0-1
+
+// Game state: 'start' | 'playing' | 'paused' | 'shop'
+let gameState = 'start';
+let nearShopId = null;
+let nearShopName = '';
+
+// Player data
+let gold = 100;
+const inventory = [];
+
+function onKeyDown(e) {
+  if (gameState === 'shop') {
+    if (e.key === 'Escape' || e.code === 'KeyE') { closeShop(); return; }
+    return;
+  }
+  if (gameState !== 'playing') return;
+  switch (e.code) {
+    case 'KeyW': case 'ArrowUp':    mvF = true; break;
+    case 'KeyS': case 'ArrowDown':  mvB = true; break;
+    case 'KeyA': case 'ArrowLeft':  mvL = true; break;
+    case 'KeyD': case 'ArrowRight': mvR = true; break;
+    case 'ShiftLeft': case 'ShiftRight': sprint = true; break;
+    case 'Space': if (canJump) { vel.y = 6.5; canJump = false; } break;
+    case 'KeyE':
+      if (nearShopId) openShop(nearShopId);
+      break;
+    case 'Escape':
+      controls.unlock();
+      break;
+  }
+}
+function onKeyUp(e) {
+  switch (e.code) {
+    case 'KeyW': case 'ArrowUp':    mvF = false; break;
+    case 'KeyS': case 'ArrowDown':  mvB = false; break;
+    case 'KeyA': case 'ArrowLeft':  mvL = false; break;
+    case 'KeyD': case 'ArrowRight': mvR = false; break;
+    case 'ShiftLeft': case 'ShiftRight': sprint = false; break;
+  }
+}
+document.addEventListener('keydown', onKeyDown);
+document.addEventListener('keyup', onKeyUp);
+
+controls.addEventListener('lock', () => {
+  if (gameState === 'paused') {
+    gameState = 'playing';
+    document.getElementById('blocker').classList.remove('show');
+  }
+});
+controls.addEventListener('unlock', () => {
+  if (gameState === 'playing') {
+    gameState = 'paused';
+    document.getElementById('blocker').classList.add('show');
+  }
+});
+
+// ════════════════════════════════════════════════════════════
+// COLLISION
+// ════════════════════════════════════════════════════════════
+function isColliding(px, pz) {
+  for (const c of colliders) {
+    const dx = px - c.cx, dz = pz - c.cz;
+    if (dx * dx + dz * dz < c.r * c.r) return true;
+  }
+  return false;
+}
+function getNearest(px, pz) {
+  let best = null, bestD = Infinity;
+  for (const c of colliders) {
+    const dx = px - c.cx, dz = pz - c.cz;
+    const dist = Math.sqrt(dx * dx + dz * dz);
+    if (dist < c.interactR && dist < bestD) { best = c; bestD = dist; }
+  }
+  return best;
+}
+
+// ════════════════════════════════════════════════════════════
+// SHOP LOGIC
+// ════════════════════════════════════════════════════════════
+let activeShopId = null;
+let activeTab = 'buy';
+
+function openShop(shopId) {
+  const shop = SHOPS.find(s => s.id === shopId);
+  if (!shop) return;
+  activeShopId = shopId;
+  gameState = 'shop';
+  controls.unlock();
+  document.getElementById('sh-title').textContent = `${shop.emoji}  ${shop.name}`;
+  document.getElementById('sh-keeper').textContent = `Shopkeeper: ${shop.keeper}`;
+  document.getElementById('sh-gold').textContent = gold;
+  document.getElementById('shop-modal').style.display = 'flex';
+  activeTab = 'buy';
+  document.getElementById('tab-buy').classList.add('active');
+  document.getElementById('tab-sell').classList.remove('active');
+  renderShop();
+}
+function closeShop() {
+  document.getElementById('shop-modal').style.display = 'none';
+  activeShopId = null;
+  gameState = 'paused';
+  document.getElementById('blocker').classList.add('show');
+}
+window.switchTab = (tab) => {
+  activeTab = tab;
+  document.getElementById('tab-buy').classList.toggle('active', tab === 'buy');
+  document.getElementById('tab-sell').classList.toggle('active', tab === 'sell');
+  renderShop();
+};
+function renderShop() {
+  const shop = SHOPS.find(s => s.id === activeShopId);
+  const el = document.getElementById('sh-items');
+  if (activeTab === 'buy') {
+    el.className = 'items-grid';
+    el.innerHTML = shop.items.map(it => `
+      <div class="item-card">
+        <span class="ic-emoji">${it.emoji}</span>
+        <div class="ic-name">${it.name}</div>
+        <div class="ic-desc">${it.desc}</div>
+        <div class="ic-price">🪙 ${it.price} gold</div>
+        <button class="buy-btn" onclick="doBuy('${it.id}')" ${gold < it.price ? 'disabled' : ''}>
+          ${gold < it.price ? 'Need More Gold' : 'Purchase'}
+        </button>
+      </div>`).join('');
+  } else {
+    el.className = '';
+    if (!inventory.length) {
+      el.innerHTML = '<div class="empty-inv">Your pack is empty.<br>Go buy something first!</div>'; return;
+    }
+    el.innerHTML = inventory.map((it, i) => `
+      <div class="sell-item">
+        <span class="si-icon">${it.emoji}</span>
+        <div class="si-info">
+          <div class="si-name">${it.name}</div>
+          <div class="si-val">Sell for: 🪙 ${it.sell} gold</div>
+        </div>
+        <button class="sell-btn" onclick="doSell(${i})">Sell</button>
+      </div>`).join('');
+  }
+}
+window.doBuy = (itemId) => {
+  const shop = SHOPS.find(s => s.id === activeShopId);
+  const it = shop.items.find(i => i.id === itemId);
+  if (!it || gold < it.price) return;
+  gold -= it.price;
+  inventory.push({ ...it });
+  updateHUD(); document.getElementById('sh-gold').textContent = gold;
+  renderShop(); toast(`Purchased ${it.emoji} ${it.name}!`);
+};
+window.doSell = (idx) => {
+  const it = inventory[idx]; if (!it) return;
+  gold += it.sell; inventory.splice(idx, 1);
+  updateHUD(); document.getElementById('sh-gold').textContent = gold;
+  renderShop(); toast(`Sold ${it.emoji} ${it.name} for ${it.sell} gold!`);
+};
+document.getElementById('shop-close-btn').addEventListener('click', closeShop);
+
+// ════════════════════════════════════════════════════════════
+// HUD HELPERS
+// ════════════════════════════════════════════════════════════
+function updateHUD() {
+  document.getElementById('gold-amt').textContent = gold;
+  const bar = document.getElementById('quick-bar');
+  bar.innerHTML = '';
+  for (let i = 0; i < 8; i++) {
+    const it = inventory[i];
+    const sl = document.createElement('div');
+    sl.className = 'qslot' + (it ? ' filled' : '');
+    sl.innerHTML = it ? `<span class="qi">${it.emoji}</span><span class="ql">${it.name.split(' ')[0]}</span>` : '';
+    bar.appendChild(sl);
+  }
+}
+updateHUD();
+
+let toastTimer;
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.style.display = 'block';
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { el.style.display = 'none'; }, 2800);
+}
+
+// Compass
+const DIRS = ['N','NW','W','SW','S','SE','E','NE'];
+function updateCompass() {
+  const a = camera.rotation.y;
+  const idx = Math.round((-a / (Math.PI * 2)) * 8 + 8) % 8;
+  document.getElementById('compass').textContent = DIRS[idx];
+}
+
+// Minimap
+const mmCanvas = document.getElementById('mm-canvas');
+const mmCtx = mmCanvas.getContext('2d');
+function drawMinimap() {
+  mmCtx.clearRect(0, 0, 130, 130);
+  mmCtx.fillStyle = '#1a1208';
+  mmCtx.beginPath(); mmCtx.arc(65, 65, 65, 0, Math.PI * 2); mmCtx.fill();
+  const scale = 130 / 90;
+  const toMM = (wx, wz) => [65 + wx * scale, 65 + wz * scale];
+  // Ground square
+  mmCtx.fillStyle = '#5a5040';
+  mmCtx.fillRect(65 - 13 * scale, 65 - 13 * scale, 26 * scale, 26 * scale);
+  // Buildings
+  BLDG_CFGS.forEach(bc => {
+    const [mx, mz] = toMM(bc.pos[0], bc.pos[2]);
+    const shop = SHOPS.find(s => s.id === bc.shopId);
+    mmCtx.fillStyle = bc.shopId === nearShopId ? '#FFD700' : '#8B6400';
+    mmCtx.fillRect(mx - 4, mz - 4, 8, 8);
+  });
+  // Player dot
+  const [px, pz] = toMM(camera.position.x, camera.position.z);
+  // Direction arrow
+  mmCtx.save();
+  mmCtx.translate(px, pz);
+  mmCtx.rotate(-camera.rotation.y);
+  mmCtx.fillStyle = '#4cce50';
+  mmCtx.beginPath(); mmCtx.moveTo(0, -6); mmCtx.lineTo(-3, 4); mmCtx.lineTo(3, 4); mmCtx.closePath(); mmCtx.fill();
+  mmCtx.restore();
+}
+
+// ════════════════════════════════════════════════════════════
+// START BUTTON
+// ════════════════════════════════════════════════════════════
+document.getElementById('start-btn').addEventListener('click', () => {
+  document.getElementById('start-screen').style.display = 'none';
+  document.getElementById('hud').style.display = 'block';
+  gameState = 'playing';
+  controls.lock();
+});
+document.getElementById('blocker').addEventListener('click', () => {
+  if (gameState === 'paused') controls.lock();
+});
+
+// ════════════════════════════════════════════════════════════
+// BUILD THE WORLD
+// ════════════════════════════════════════════════════════════
+buildWorld();
+
+// ════════════════════════════════════════════════════════════
+// MAIN LOOP
+// ════════════════════════════════════════════════════════════
+const fwd = new THREE.Vector3();
+const rgt = new THREE.Vector3();
+let prevTime = performance.now();
+const clock = new THREE.Clock();
+
+function animate() {
+  requestAnimationFrame(animate);
+  const now = performance.now();
+  const dt = Math.min((now - prevTime) / 1000, 0.05);
+  prevTime = now;
+
+  if (gameState === 'playing') {
+    const moving = mvF || mvB || mvL || mvR;
+    const isSprint = sprint && moving && sprintStam > 0;
+    const spd = SPEED * (isSprint ? SPRINT : 1.0);
+
+    // Stamina
+    if (isSprint) sprintStam = Math.max(0, sprintStam - dt * 0.4);
+    else          sprintStam = Math.min(1, sprintStam + dt * 0.3);
+    document.getElementById('sprint-fill').style.width = (sprintStam * 100) + '%';
+
+    // Velocity friction
+    vel.x -= vel.x * 14 * dt;
+    vel.z -= vel.z * 14 * dt;
+    vel.y -= GRAVITY * dt;
+
+    // Get look directions (flat)
+    camera.getWorldDirection(fwd); fwd.y = 0; fwd.normalize();
+    rgt.crossVectors(fwd, new THREE.Vector3(0, 1, 0)).normalize();
+
+    if (mvF) { vel.x += fwd.x * spd * dt; vel.z += fwd.z * spd * dt; }
+    if (mvB) { vel.x -= fwd.x * spd * dt; vel.z -= fwd.z * spd * dt; }
+    if (mvL) { vel.x -= rgt.x * spd * dt; vel.z -= rgt.z * spd * dt; }
+    if (mvR) { vel.x += rgt.x * spd * dt; vel.z += rgt.z * spd * dt; }
+
+    const pos = camera.position;
+
+    // Move X with collision
+    const nx = pos.x + vel.x;
+    if (!isColliding(nx, pos.z)) pos.x = nx; else vel.x = 0;
+    // Move Z with collision
+    const nz = pos.z + vel.z;
+    if (!isColliding(pos.x, nz)) pos.z = nz; else vel.z = 0;
+
+    // Vertical
+    pos.y += vel.y * dt;
+    if (pos.y < PLAYER_H) { pos.y = PLAYER_H; vel.y = 0; canJump = true; }
+
+    // World boundary
+    const BOUND = 40;
+    pos.x = Math.max(-BOUND, Math.min(BOUND, pos.x));
+    pos.z = Math.max(-BOUND, Math.min(BOUND, pos.z));
+
+    // Shop proximity
+    const near = getNearest(pos.x, pos.z);
+    const prompt = document.getElementById('interact-prompt');
+    if (near) {
+      nearShopId = near.shopId;
+      const sh = SHOPS.find(s => s.id === near.shopId);
+      nearShopName = sh ? sh.name : '';
+      document.getElementById('prompt-name').textContent = (sh ? sh.emoji + '  ' : '') + nearShopName;
+      prompt.style.display = 'block';
+    } else {
+      nearShopId = null; nearShopName = '';
+      prompt.style.display = 'none';
+    }
+
+    updateCompass();
+    drawMinimap();
+
+    // Lantern flicker
+    const t = clock.getElapsedTime();
+    lanternLights.forEach((l, i) => {
+      l.intensity = 1.45 + Math.sin(t * 8.5 + i * 1.7) * 0.18;
+    });
+  }
+
+  renderer.render(scene, camera);
+}
+
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+animate();
+</script>
+</body>
+</html>
