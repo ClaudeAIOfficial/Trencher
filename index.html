@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HOODCITY — Robin Hood Trading Minigame</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=MedievalSharp&display=swap" rel="stylesheet" />
+</head>
+<body>
+  <div id="loading-screen">
+    <div class="loading-content">
+      <h1>HOODCITY</h1>
+      <p class="tagline">Steal from the rich. Trade with the bold.</p>
+      <div class="loading-bar"><div class="loading-fill"></div></div>
+      <p class="loading-text">Loading Sherwood Market...</p>
+    </div>
+  </div>
+
+  <div id="start-screen">
+    <div class="start-panel">
+      <div class="crest">🏹</div>
+      <h1>HOODCITY</h1>
+      <p class="subtitle">A Robin Hood Trading Adventure</p>
+      <div class="lore">
+        <p>Welcome to Hoodcity — a bustling medieval market town hidden deep in Sherwood Forest. 
+        Play as an outlaw archer, explore realistic shops, and trade goods with merchants and fellow travelers.</p>
+      </div>
+      <div class="controls-info">
+        <h3>Controls</h3>
+        <div class="control-grid">
+          <span><kbd>W A S D</kbd> Move</span>
+          <span><kbd>Mouse</kbd> Look</span>
+          <span><kbd>E</kbd> Trade / Interact</span>
+          <span><kbd>Shift</kbd> Sprint</span>
+          <span><kbd>Tab</kbd> Inventory</span>
+          <span><kbd>Esc</kbd> Release mouse</span>
+        </div>
+      </div>
+      <button id="play-btn">Enter Hoodcity</button>
+    </div>
+  </div>
+
+  <div id="hud" class="hidden">
+    <div class="hud-top">
+      <div class="hud-logo">HOODCITY</div>
+      <div class="hud-stats">
+        <span class="gold-display">🪙 <span id="gold-amount">100</span></span>
+        <span class="rep-display">⭐ Rep: <span id="rep-amount">0</span></span>
+      </div>
+    </div>
+    <div class="crosshair">+</div>
+    <div id="interaction-prompt" class="hidden">
+      <span id="prompt-text">Press E to trade</span>
+    </div>
+    <div class="hud-bottom">
+      <div class="minimap" id="minimap">
+        <canvas id="minimap-canvas" width="140" height="140"></canvas>
+      </div>
+      <div class="shop-radar" id="shop-radar"></div>
+    </div>
+  </div>
+
+  <div id="inventory-panel" class="panel hidden">
+    <div class="panel-header">
+      <h2>🎒 Your Satchel</h2>
+      <button class="close-btn" data-close="inventory-panel">✕</button>
+    </div>
+    <div id="inventory-grid" class="item-grid"></div>
+  </div>
+
+  <div id="trade-panel" class="panel hidden">
+    <div class="panel-header">
+      <h2 id="trade-title">🏪 Trading Post</h2>
+      <button class="close-btn" data-close="trade-panel">✕</button>
+    </div>
+    <div class="trade-layout">
+      <div class="trade-section">
+        <h3 id="trader-name">Merchant</h3>
+        <div id="trader-items" class="item-grid"></div>
+      </div>
+      <div class="trade-arrows">⇄</div>
+      <div class="trade-section">
+        <h3>Your Items</h3>
+        <div id="player-trade-items" class="item-grid"></div>
+      </div>
+    </div>
+    <div class="trade-log" id="trade-log"></div>
+  </div>
+
+  <div id="player-trade-panel" class="panel hidden">
+    <div class="panel-header">
+      <h2 id="player-trade-title">🤝 Trade with Traveler</h2>
+      <button class="close-btn" data-close="player-trade-panel">✕</button>
+    </div>
+    <div class="player-trade-layout">
+      <div class="trade-section">
+        <h3 id="npc-name">Traveler</h3>
+        <div id="npc-offer" class="item-grid"></div>
+      </div>
+      <div class="trade-section offer-section">
+        <h3>Your Offer</h3>
+        <div id="your-offer" class="item-grid"></div>
+        <button id="confirm-trade-btn" class="action-btn">Confirm Trade</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+    }
+  }
+  </script>
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
