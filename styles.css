@@ -1,0 +1,614 @@
+:root {
+  --forest: #0f2a1e;
+  --moss: #59733f;
+  --gold: #f0b23b;
+  --wood: #6d3d23;
+  --stone: #9b9586;
+  --cream: #f7edcf;
+  --night: #08110e;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  color: var(--cream);
+  background:
+    radial-gradient(circle at top left, rgba(240, 178, 59, 0.2), transparent 32rem),
+    linear-gradient(135deg, #08110e 0%, #113522 50%, #07100d 100%);
+  font-family: Inter, system-ui, sans-serif;
+}
+
+button {
+  font: inherit;
+}
+
+.game-shell {
+  width: min(1180px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 30px 0 54px;
+}
+
+.hero {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 24px;
+  align-items: end;
+  min-height: 250px;
+}
+
+.eyebrow {
+  margin: 0 0 8px;
+  color: var(--gold);
+  font-size: 0.78rem;
+  font-weight: 900;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+h1,
+h2 {
+  margin: 0;
+  font-family: Bangers, Impact, fantasy;
+  letter-spacing: 0.05em;
+  text-shadow: 0 8px 0 rgba(0, 0, 0, 0.2);
+}
+
+h1 {
+  color: #ffe18d;
+  font-size: clamp(5rem, 17vw, 12rem);
+  line-height: 0.82;
+}
+
+.tagline {
+  max-width: 660px;
+  margin: 18px 0 0;
+  color: rgba(247, 237, 207, 0.86);
+  font-size: clamp(1.1rem, 2vw, 1.45rem);
+  line-height: 1.5;
+}
+
+.hud-card,
+.instructions,
+.player-card,
+.position-panel,
+.shops-overview article,
+.trade-modal {
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(8, 17, 14, 0.76);
+  box-shadow: 0 22px 60px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(18px);
+}
+
+.hud-card {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  min-width: 250px;
+  padding: 18px;
+  border-radius: 22px;
+}
+
+.hud-card small,
+.player-card small,
+.position-panel span,
+.instructions span {
+  display: block;
+  color: rgba(247, 237, 207, 0.68);
+}
+
+.status-dot {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #58ff83;
+  box-shadow: 0 0 22px #58ff83;
+}
+
+.viewport-section {
+  margin-top: 26px;
+}
+
+.instructions {
+  display: flex;
+  gap: 18px;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  border-radius: 22px 22px 0 0;
+}
+
+#enterGame,
+.trade-button {
+  border: 0;
+  border-radius: 999px;
+  color: #1a1208;
+  background: linear-gradient(135deg, #ffe18d, var(--gold));
+  padding: 13px 20px;
+  font-weight: 900;
+  cursor: pointer;
+  box-shadow: 0 12px 22px rgba(0, 0, 0, 0.28);
+}
+
+.game-frame {
+  position: relative;
+  height: min(720px, 72vh);
+  min-height: 520px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 0 0 28px 28px;
+  outline: none;
+  background:
+    linear-gradient(#7fc7f4 0%, #bfdfff 38%, #4f7c46 39%, #243f27 100%);
+  perspective: 850px;
+  cursor: grab;
+}
+
+.game-frame:focus {
+  box-shadow: 0 0 0 4px rgba(240, 178, 59, 0.32);
+}
+
+.game-frame.is-looking {
+  cursor: grabbing;
+}
+
+.skyline {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.skyline span {
+  position: absolute;
+  bottom: 40%;
+  width: 18vw;
+  height: 18vw;
+  min-width: 130px;
+  min-height: 130px;
+  border-radius: 50% 50% 14% 14%;
+  background: linear-gradient(#294c32, #142b20);
+  filter: blur(0.3px);
+}
+
+.skyline span:nth-child(1) { left: -4%; }
+.skyline span:nth-child(2) { left: 18%; transform: scale(1.25); }
+.skyline span:nth-child(3) { right: 14%; transform: scale(1.1); }
+.skyline span:nth-child(4) { right: -4%; }
+
+.camera {
+  position: absolute;
+  left: 50%;
+  top: 54%;
+  width: 1px;
+  height: 1px;
+  transform-style: preserve-3d;
+  transition: transform 120ms linear;
+}
+
+.road {
+  position: absolute;
+  left: -78px;
+  top: -14px;
+  width: 156px;
+  height: 1400px;
+  transform: rotateX(78deg) translateZ(-80px);
+  transform-origin: top center;
+  background:
+    repeating-linear-gradient(90deg, transparent 0 68px, rgba(255, 255, 255, 0.18) 68px 72px, transparent 72px 140px),
+    linear-gradient(90deg, #5c554a, #837b6a 46%, #5d5549);
+  box-shadow: 0 0 0 12px #304628;
+}
+
+.lane {
+  width: 8px;
+  height: 78px;
+  margin: 70px auto;
+  border-radius: 20px;
+  background: rgba(255, 235, 180, 0.9);
+}
+
+.building,
+.tree,
+.lamp {
+  --x: 0;
+  --z: 0;
+  position: absolute;
+  left: calc(var(--x) * 1px);
+  top: 0;
+  transform: translate3d(-50%, -100%, calc(var(--z) * -12px));
+  transform-style: preserve-3d;
+}
+
+.building {
+  width: 150px;
+  height: 154px;
+  border: 0;
+  color: var(--cream);
+  background: linear-gradient(90deg, #6c655a, var(--stone), #6c655a);
+  border-bottom: 12px solid #51483e;
+  cursor: pointer;
+  box-shadow:
+    inset -16px 0 0 rgba(0, 0, 0, 0.12),
+    0 42px 42px rgba(0, 0, 0, 0.36);
+}
+
+.building::before,
+.building::after {
+  content: "";
+  position: absolute;
+  top: 12px;
+  width: 22px;
+  height: 100px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.building::before { left: 0; transform: translateX(-100%) skewY(-18deg); background: #5b5248; }
+.building::after { right: 0; transform: translateX(100%) skewY(18deg); background: #746a5d; }
+
+.building:hover {
+  filter: brightness(1.15);
+}
+
+.roof,
+.awning {
+  position: absolute;
+  left: -12px;
+  right: -12px;
+  top: -34px;
+  height: 42px;
+  background: linear-gradient(135deg, #4d2119, #9d3d28);
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+}
+
+.awning {
+  top: 12px;
+  height: 28px;
+  clip-path: none;
+  background: repeating-linear-gradient(90deg, #f7edcf 0 18px, #b53626 18px 36px);
+}
+
+.sign {
+  position: absolute;
+  left: 50%;
+  top: 46px;
+  width: 126px;
+  transform: translateX(-50%);
+  padding: 7px 8px;
+  border: 3px solid #3c2619;
+  border-radius: 8px;
+  color: #ffe18d;
+  background: #2c1d16;
+  font-size: 0.78rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.windows {
+  position: absolute;
+  left: 25px;
+  right: 25px;
+  top: 84px;
+  height: 24px;
+  background:
+    linear-gradient(90deg, #ffe6a3 0 34px, transparent 34px 56px, #ffe6a3 56px);
+  box-shadow: inset 0 0 0 4px #48321f;
+}
+
+.door {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: 42px;
+  height: 54px;
+  transform: translateX(-50%);
+  border-radius: 18px 18px 0 0;
+  background: linear-gradient(90deg, #4a2919, #7c4527);
+  box-shadow: inset 0 0 0 4px #2a180f;
+}
+
+.blacksmith {
+  background: linear-gradient(90deg, #4b4b4d, #77787d, #46464a);
+}
+
+.chimney {
+  position: absolute;
+  right: 16px;
+  top: -48px;
+  width: 28px;
+  height: 58px;
+  background: #4b3327;
+}
+
+.chimney::after {
+  content: "";
+  position: absolute;
+  left: -12px;
+  top: -28px;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: rgba(40, 40, 40, 0.26);
+  filter: blur(7px);
+}
+
+.bank {
+  width: 190px;
+  background: linear-gradient(90deg, #736b5c, #bab09a, #736b5c);
+}
+
+.columns {
+  position: absolute;
+  inset: 64px 18px 0;
+  background: repeating-linear-gradient(90deg, #efe4c8 0 14px, transparent 14px 34px);
+}
+
+.tree {
+  width: 34px;
+  height: 120px;
+  background: #603922;
+}
+
+.tree::before,
+.tree::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  width: 118px;
+  height: 118px;
+  transform: translate(-50%, -70%);
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #6fb05a, #1f512d 68%);
+}
+
+.tree::after {
+  width: 86px;
+  height: 86px;
+  transform: translate(-25%, -112%);
+}
+
+.lamp {
+  width: 12px;
+  height: 112px;
+  background: #23211f;
+}
+
+.lamp::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: -26px;
+  width: 32px;
+  height: 32px;
+  transform: translateX(-50%);
+  border-radius: 50% 50% 8px 8px;
+  background: #ffd56a;
+  box-shadow: 0 0 34px #ffd56a;
+}
+
+.crosshair {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 38px;
+  height: 38px;
+  transform: translate(-50%, -50%);
+  border: 2px solid rgba(255, 255, 255, 0.8);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.crosshair::before,
+.crosshair::after {
+  content: "";
+  position: absolute;
+  background: rgba(255, 255, 255, 0.8);
+}
+
+.crosshair::before {
+  left: 17px;
+  top: -12px;
+  width: 2px;
+  height: 60px;
+}
+
+.crosshair::after {
+  left: -12px;
+  top: 17px;
+  width: 60px;
+  height: 2px;
+}
+
+.player-card {
+  position: absolute;
+  left: 18px;
+  bottom: 18px;
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  padding: 12px 14px;
+  border-radius: 20px;
+}
+
+.avatar {
+  position: relative;
+  width: 58px;
+  height: 68px;
+}
+
+.hood,
+.face,
+.body,
+.bow {
+  position: absolute;
+}
+
+.hood {
+  left: 12px;
+  top: 0;
+  width: 34px;
+  height: 34px;
+  border-radius: 50% 50% 42% 42%;
+  background: #1e6d36;
+}
+
+.face {
+  left: 18px;
+  top: 9px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #d9a471;
+}
+
+.body {
+  left: 9px;
+  top: 33px;
+  width: 40px;
+  height: 35px;
+  border-radius: 12px 12px 5px 5px;
+  background: linear-gradient(90deg, #1c5731, #45a152);
+}
+
+.bow {
+  right: -2px;
+  top: 14px;
+  width: 12px;
+  height: 52px;
+  border: 4px solid #8d542e;
+  border-left: 0;
+  border-radius: 0 50% 50% 0;
+}
+
+.position-panel {
+  position: absolute;
+  right: 18px;
+  bottom: 18px;
+  padding: 13px 16px;
+  border-radius: 16px;
+}
+
+.trade-modal {
+  width: min(560px, calc(100% - 38px));
+  border-radius: 24px;
+  color: var(--cream);
+  padding: 28px;
+}
+
+.trade-modal::backdrop {
+  background: rgba(3, 8, 6, 0.7);
+}
+
+.trade-modal h2 {
+  color: #ffe18d;
+  font-size: 3rem;
+}
+
+.close {
+  position: absolute;
+  right: 18px;
+  top: 18px;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 50%;
+  color: var(--cream);
+  background: rgba(255, 255, 255, 0.12);
+  cursor: pointer;
+}
+
+.trade-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 18px 0;
+}
+
+.trade-item {
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 16px;
+  padding: 14px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.trade-item strong {
+  display: block;
+}
+
+.trade-item span,
+.trade-response {
+  color: rgba(247, 237, 207, 0.72);
+}
+
+.shops-overview {
+  margin-top: 52px;
+}
+
+.shops-overview h2 {
+  color: #ffe18d;
+  font-size: clamp(2.8rem, 7vw, 5rem);
+}
+
+.shop-cards {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 20px;
+}
+
+.shop-cards article {
+  min-height: 190px;
+  padding: 22px;
+  border-radius: 24px;
+}
+
+.shop-cards span {
+  color: var(--gold);
+  font-weight: 900;
+}
+
+.shop-cards h3 {
+  margin: 18px 0 10px;
+}
+
+.shop-cards p {
+  color: rgba(247, 237, 207, 0.72);
+  line-height: 1.55;
+}
+
+@media (max-width: 820px) {
+  .hero,
+  .instructions,
+  .shop-cards {
+    grid-template-columns: 1fr;
+  }
+
+  .instructions {
+    align-items: stretch;
+  }
+
+  .shop-cards {
+    display: grid;
+  }
+
+  .game-frame {
+    height: 640px;
+  }
+}
+
+@media (max-width: 560px) {
+  .game-shell {
+    width: min(100% - 20px, 1180px);
+  }
+
+  .trade-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .player-card,
+  .position-panel {
+    max-width: calc(50% - 24px);
+  }
+}
