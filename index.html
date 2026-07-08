@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>HOODCITY — A Robin Hood Adventure</title>
+  <meta name="description" content="HOODCITY: a first-person Robin Hood themed minigame. Explore a medieval city, visit shops and trade with other players." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=MedievalSharp&family=Inter:wght@400;600;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./styles.css" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8F%B9%3C/text%3E%3C/svg%3E" />
+</head>
+<body>
+  <!-- ===== Loading Screen ===== -->
+  <div id="loading">
+    <div class="load-inner">
+      <div class="load-logo">🏹</div>
+      <h1 class="load-title">HOODCITY</h1>
+      <div class="load-bar"><div class="load-bar-fill" id="loadFill"></div></div>
+      <p class="load-tip" id="loadTip">Stringing the bows…</p>
+    </div>
+  </div>
+
+  <!-- ===== Main Menu ===== -->
+  <div id="menu" class="overlay hidden">
+    <div class="menu-card">
+      <div class="menu-emblem">🏹</div>
+      <h1 class="menu-title">HOODCITY</h1>
+      <p class="menu-sub">Rob from the rich. Trade with the people. Rule the streets of Sherwood.</p>
+      <button class="btn btn-primary" id="playBtn">▶ Enter the City</button>
+      <div class="menu-controls">
+        <div class="ctl"><span class="key">W A S D</span> Move</div>
+        <div class="ctl"><span class="key">Mouse</span> Look</div>
+        <div class="ctl"><span class="key">Shift</span> Sprint</div>
+        <div class="ctl"><span class="key">Space</span> Jump</div>
+        <div class="ctl"><span class="key">E</span> Interact / Trade</div>
+        <div class="ctl"><span class="key">Click</span> Fire Arrow</div>
+        <div class="ctl"><span class="key">M</span> Map</div>
+        <div class="ctl"><span class="key">Esc</span> Menu</div>
+      </div>
+      <p class="menu-foot">A first-person medieval trading adventure • Built with Three.js</p>
+    </div>
+  </div>
+
+  <!-- ===== In-game HUD ===== -->
+  <div id="hud" class="hidden">
+    <div id="crosshair">
+      <div class="ch-dot"></div>
+      <div class="ch-line ch-top"></div>
+      <div class="ch-line ch-bottom"></div>
+      <div class="ch-line ch-left"></div>
+      <div class="ch-line ch-right"></div>
+    </div>
+
+    <div id="topbar">
+      <div class="stat gold"><span class="stat-ico">🪙</span><span id="goldVal">150</span></div>
+      <div class="stat arrows"><span class="stat-ico">🏹</span><span id="arrowVal">30</span></div>
+      <div class="stat online"><span class="dot-live"></span><span id="onlineVal">0</span> traders online</div>
+    </div>
+
+    <div id="questbox">
+      <div class="quest-title">◆ Quest</div>
+      <div class="quest-text" id="questText">Explore HOODCITY and visit a shop to start trading.</div>
+    </div>
+
+    <div id="health">
+      <div class="hp-label">HP</div>
+      <div class="hp-track"><div class="hp-fill" id="hpFill"></div></div>
+    </div>
+
+    <div id="interactPrompt" class="hidden"><span class="key">E</span> <span id="interactLabel">Interact</span></div>
+
+    <canvas id="minimap" width="180" height="180" class="hidden"></canvas>
+
+    <div id="toast"></div>
+  </div>
+
+  <!-- ===== Shop / Trade Panel ===== -->
+  <div id="shop" class="overlay hidden">
+    <div class="shop-card">
+      <button class="shop-close" id="shopClose">✕</button>
+      <div class="shop-head">
+        <div class="shop-icon" id="shopIcon">🏪</div>
+        <div>
+          <h2 class="shop-name" id="shopName">Shop</h2>
+          <p class="shop-keeper" id="shopKeeper">Keeper</p>
+        </div>
+        <div class="shop-wallet"><span>🪙</span> <span id="shopGold">0</span></div>
+      </div>
+
+      <div class="shop-tabs">
+        <button class="tab active" data-tab="buy">Buy</button>
+        <button class="tab" data-tab="sell">Sell</button>
+        <button class="tab" data-tab="market">Player Market</button>
+      </div>
+
+      <div class="shop-body">
+        <div class="tab-pane active" id="pane-buy"></div>
+        <div class="tab-pane" id="pane-sell"></div>
+        <div class="tab-pane" id="pane-market"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Inventory quick bar ===== -->
+  <div id="pausehint" class="hidden">Paused — click to resume</div>
+
+  <!-- Three.js via import map -->
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/"
+    }
+  }
+  </script>
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>
